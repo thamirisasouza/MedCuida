@@ -111,6 +111,17 @@ service cloud.firestore {
       data.notes is string && data.notes.size() <= 400;
     }
 
+    function isValidCatalogSettings(data, userId, settingId) {
+      return data.keys().hasAll(['id', 'userId', 'categories', 'presentations']) &&
+        data.keys().hasOnly(['id', 'userId', 'categories', 'presentations']) &&
+        data.id is string && data.id == settingId && data.id.size() <= 128 &&
+        data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+        data.categories is list && data.categories.size() >= 1 && data.categories.size() <= 50 &&
+        data.categories[0] is string && data.categories[0].size() <= 80 &&
+        data.presentations is list && data.presentations.size() >= 1 && data.presentations.size() <= 50 &&
+        data.presentations[0] is string && data.presentations[0].size() <= 160;
+    }
+
     match /users/{userId}/medications/{medicationId} {
       allow get: if isOwner(userId) && isValidId(userId) && isValidId(medicationId);
       allow list: if isOwner(userId);
@@ -143,6 +154,18 @@ service cloud.firestore {
           'takenTime', 'status', 'notes'
         ]);
       allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(logId);
+    }
+
+    match /users/{userId}/settings/{settingId} {
+      allow get: if isOwner(userId) && isValidId(userId) && isValidId(settingId);
+      allow list: if isOwner(userId);
+      allow create: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(settingId) && isValidCatalogSettings(incoming(), userId, settingId);
+      allow update: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(settingId) &&
+        isValidCatalogSettings(incoming(), userId, settingId) &&
+        incoming().id == existing().id &&
+        incoming().userId == existing().userId &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['categories', 'presentations']);
+      allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(settingId);
     }
   }
 }

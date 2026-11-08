@@ -47,32 +47,173 @@ import {
   ShoppingCart,
   LogOut,
   ShieldCheck,
-  Loader2
+  Loader2,
+  SlidersHorizontal,
+  RotateCcw
 } from 'lucide-react';
 
 // ==========================================
-// TIPOS E CATEGORIAS CLÍNICAS PADRÃO
+// TIPOS E CATEGORIAS / APRESENTAÇÕES PADRÃO
 // ==========================================
 
-export type MedicationCategory =
-  | 'Uso Contínuo'
-  | 'Receita Retida'
-  | 'Enxaqueca'
-  | 'Vitaminas'
-  | 'Dor & Febre'
-  | 'Gastrointestinal'
-  | 'Respiratório & Alergia'
-  | 'Primeiros Socorros';
+export type MedicationCategory = string;
+export type MedicationFormType = string;
 
-export const FIXED_CATEGORIES: MedicationCategory[] = [
-  'Uso Contínuo',
-  'Receita Retida',
-  'Enxaqueca',
-  'Vitaminas',
-  'Dor & Febre',
-  'Gastrointestinal',
-  'Respiratório & Alergia',
-  'Primeiros Socorros'
+export type CategoryColorKey =
+  | 'sky'
+  | 'teal'
+  | 'emerald'
+  | 'cyan'
+  | 'indigo'
+  | 'violet'
+  | 'amber'
+  | 'rose';
+
+export interface CategoryColorTheme {
+  key: CategoryColorKey;
+  label: string;
+  swatchClass: string;
+  cardBgClass: string;
+  cardBorderClass: string;
+  accentStripClass: string;
+  badgeBgClass: string;
+  badgeTextClass: string;
+  ringTextClass: string;
+}
+
+export const CATEGORY_COLOR_THEMES: Record<CategoryColorKey, CategoryColorTheme> = {
+  sky: {
+    key: 'sky',
+    label: 'Azul Clínico',
+    swatchClass: 'bg-sky-500',
+    cardBgClass: 'bg-sky-50/45',
+    cardBorderClass: 'border-sky-200/90',
+    accentStripClass: 'border-l-4 border-l-sky-500',
+    badgeBgClass: 'bg-sky-100/90 border border-sky-200',
+    badgeTextClass: 'text-sky-900',
+    ringTextClass: 'text-sky-600'
+  },
+  teal: {
+    key: 'teal',
+    label: 'Verde Hospitalar',
+    swatchClass: 'bg-teal-500',
+    cardBgClass: 'bg-teal-50/45',
+    cardBorderClass: 'border-teal-200/90',
+    accentStripClass: 'border-l-4 border-l-teal-500',
+    badgeBgClass: 'bg-teal-100/90 border border-teal-200',
+    badgeTextClass: 'text-teal-900',
+    ringTextClass: 'text-teal-600'
+  },
+  emerald: {
+    key: 'emerald',
+    label: 'Esmeralda Saúde',
+    swatchClass: 'bg-emerald-500',
+    cardBgClass: 'bg-emerald-50/45',
+    cardBorderClass: 'border-emerald-200/90',
+    accentStripClass: 'border-l-4 border-l-emerald-500',
+    badgeBgClass: 'bg-emerald-100/90 border border-emerald-200',
+    badgeTextClass: 'text-emerald-900',
+    ringTextClass: 'text-emerald-600'
+  },
+  cyan: {
+    key: 'cyan',
+    label: 'Ciano Sereno',
+    swatchClass: 'bg-cyan-500',
+    cardBgClass: 'bg-cyan-50/45',
+    cardBorderClass: 'border-cyan-200/90',
+    accentStripClass: 'border-l-4 border-l-cyan-500',
+    badgeBgClass: 'bg-cyan-100/90 border border-cyan-200',
+    badgeTextClass: 'text-cyan-900',
+    ringTextClass: 'text-cyan-600'
+  },
+  indigo: {
+    key: 'indigo',
+    label: 'Índigo Controlado',
+    swatchClass: 'bg-indigo-500',
+    cardBgClass: 'bg-indigo-50/45',
+    cardBorderClass: 'border-indigo-200/90',
+    accentStripClass: 'border-l-4 border-l-indigo-500',
+    badgeBgClass: 'bg-indigo-100/90 border border-indigo-200',
+    badgeTextClass: 'text-indigo-900',
+    ringTextClass: 'text-indigo-600'
+  },
+  violet: {
+    key: 'violet',
+    label: 'Lavanda Neurológico',
+    swatchClass: 'bg-violet-500',
+    cardBgClass: 'bg-violet-50/45',
+    cardBorderClass: 'border-violet-200/90',
+    accentStripClass: 'border-l-4 border-l-violet-500',
+    badgeBgClass: 'bg-violet-100/90 border border-violet-200',
+    badgeTextClass: 'text-violet-900',
+    ringTextClass: 'text-violet-600'
+  },
+  amber: {
+    key: 'amber',
+    label: 'Âmbar Suplemento',
+    swatchClass: 'bg-amber-500',
+    cardBgClass: 'bg-amber-50/45',
+    cardBorderClass: 'border-amber-200/90',
+    accentStripClass: 'border-l-4 border-l-amber-500',
+    badgeBgClass: 'bg-amber-100/90 border border-amber-200',
+    badgeTextClass: 'text-amber-900',
+    ringTextClass: 'text-amber-600'
+  },
+  rose: {
+    key: 'rose',
+    label: 'Coral Alívio',
+    swatchClass: 'bg-rose-500',
+    cardBgClass: 'bg-rose-50/45',
+    cardBorderClass: 'border-rose-200/90',
+    accentStripClass: 'border-l-4 border-l-rose-500',
+    badgeBgClass: 'bg-rose-100/90 border border-rose-200',
+    badgeTextClass: 'text-rose-900',
+    ringTextClass: 'text-rose-600'
+  }
+};
+
+export const CATEGORY_COLOR_KEYS: CategoryColorKey[] = [
+  'sky',
+  'teal',
+  'emerald',
+  'cyan',
+  'indigo',
+  'violet',
+  'amber',
+  'rose'
+];
+
+export interface CategoryOption {
+  name: string;
+  colorKey: CategoryColorKey;
+}
+
+export interface PresentationOption {
+  name: string; // ex: "Comprimido", "Sachê", "mL"
+  unitLabel: string; // ex: "comprimidos", "sachês", "ml"
+  defaultDose: string; // ex: "1 comprimido", "1 sachê", "5 ml"
+}
+
+export const DEFAULT_CATEGORIES: CategoryOption[] = [
+  { name: 'Uso Contínuo', colorKey: 'teal' },
+  { name: 'Receita Retida', colorKey: 'indigo' },
+  { name: 'Enxaqueca', colorKey: 'violet' },
+  { name: 'Vitaminas', colorKey: 'emerald' },
+  { name: 'Dor & Febre', colorKey: 'rose' },
+  { name: 'Gastrointestinal', colorKey: 'amber' },
+  { name: 'Respiratório & Alergia', colorKey: 'sky' },
+  { name: 'Primeiros Socorros', colorKey: 'cyan' }
+];
+
+export const DEFAULT_PRESENTATIONS: PresentationOption[] = [
+  { name: 'Comprimido', unitLabel: 'comprimidos', defaultDose: '1 comprimido' },
+  { name: 'Cápsula', unitLabel: 'cápsulas', defaultDose: '1 cápsula' },
+  { name: 'Gotas', unitLabel: 'gotas', defaultDose: '20 gotas' },
+  { name: 'Xarope', unitLabel: 'ml', defaultDose: '10 ml' },
+  { name: 'mL', unitLabel: 'ml', defaultDose: '5 ml' },
+  { name: 'Sachê', unitLabel: 'sachês', defaultDose: '1 sachê' },
+  { name: 'Pomada', unitLabel: 'aplicações', defaultDose: '1 aplicação' },
+  { name: 'Spray', unitLabel: 'jatos', defaultDose: '2 jatos' }
 ];
 
 export const STANDARD_CLINICAL_TAGS: string[] = [
@@ -86,14 +227,6 @@ export const STANDARD_CLINICAL_TAGS: string[] = [
   'Termolábil / Geladeira'
 ];
 
-export type MedicationFormType =
-  | 'Comprimido'
-  | 'Cápsula'
-  | 'Gotas'
-  | 'Xarope'
-  | 'Pomada'
-  | 'Spray';
-
 export type ControlledType =
   | 'Venda Livre / Simples'
   | 'Receita Retida (Branca C1/Antibiótico)'
@@ -106,8 +239,8 @@ export interface Medication {
   activeIngredient: string;
   purpose: string;
   clinicalTags: string[];
-  category: MedicationCategory;
-  formType: MedicationFormType;
+  category: string;
+  formType: string;
   unitLabel: string;
   dosageInstruction: string;
   controlled: ControlledType;
@@ -143,8 +276,80 @@ export interface DoseLog {
   notes?: string;
 }
 
-type ActiveTab = 'hoje' | 'historico' | 'biblioteca' | 'estoque' | 'novo';
+type ActiveTab = 'hoje' | 'historico' | 'biblioteca' | 'estoque' | 'novo' | 'opcoes';
 type StockSubTab = 'inventario' | 'compras';
+
+// ==========================================
+// SERIALIZAÇÃO DE CATEGORIAS E APRESENTAÇÕES PARA O FIRESTORE
+// ==========================================
+
+const getDefaultColorForCategoryName = (name: string, index = 0): CategoryColorKey => {
+  const matched = DEFAULT_CATEGORIES.find(
+    (c) => c.name.toLowerCase() === name.trim().toLowerCase()
+  );
+  if (matched) return matched.colorKey;
+  return CATEGORY_COLOR_KEYS[index % CATEGORY_COLOR_KEYS.length];
+};
+
+const serializeCategories = (list: CategoryOption[]): string[] => {
+  return list.map(
+    (c) => `${c.name.replace(/\|/g, '').trim()}|${c.colorKey}`
+  );
+};
+
+const deserializeCategories = (rawList: unknown): CategoryOption[] => {
+  if (!Array.isArray(rawList) || rawList.length === 0) {
+    return DEFAULT_CATEGORIES;
+  }
+  const parsed: CategoryOption[] = [];
+  rawList.forEach((item, idx) => {
+    if (typeof item === 'string') {
+      const [rawName, rawColor] = item.split('|');
+      const cleanName = (rawName || '').trim();
+      if (cleanName) {
+        const validColor =
+          rawColor &&
+          CATEGORY_COLOR_KEYS.includes(rawColor.trim() as CategoryColorKey)
+            ? (rawColor.trim() as CategoryColorKey)
+            : getDefaultColorForCategoryName(cleanName, idx);
+        parsed.push({
+          name: cleanName,
+          colorKey: validColor
+        });
+      }
+    }
+  });
+  return parsed.length > 0 ? parsed : DEFAULT_CATEGORIES;
+};
+
+const serializePresentations = (list: PresentationOption[]): string[] => {
+  return list.map(
+    (p) =>
+      `${p.name.replace(/\|/g, '').trim()}|${p.unitLabel
+        .replace(/\|/g, '')
+        .trim()}|${p.defaultDose.replace(/\|/g, '').trim()}`
+  );
+};
+
+const deserializePresentations = (rawList: unknown): PresentationOption[] => {
+  if (!Array.isArray(rawList) || rawList.length === 0) {
+    return DEFAULT_PRESENTATIONS;
+  }
+  const parsed: PresentationOption[] = [];
+  rawList.forEach((item) => {
+    if (typeof item === 'string') {
+      const [name, unitLabel, defaultDose] = item.split('|');
+      if (name && name.trim()) {
+        parsed.push({
+          name: name.trim(),
+          unitLabel: (unitLabel || 'unidades').trim(),
+          defaultDose: (defaultDose || `1 ${name.trim().toLowerCase()}`).trim()
+        });
+      }
+    }
+  });
+  return parsed.length > 0 ? parsed : DEFAULT_PRESENTATIONS;
+};
 
 // ==========================================
 // UTILITÁRIOS DE DATA E FORMATAÇÃO
@@ -294,9 +499,15 @@ export default function App() {
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Estados de Dados no Cloud Firestore (Iniciam vazios / limpos)
+  // Estados de Dados no Cloud Firestore
   const [medications, setMedications] = useState<Medication[]>([]);
   const [doseLogs, setDoseLogs] = useState<DoseLog[]>([]);
+  const [categoriesList, setCategoriesList] = useState<CategoryOption[]>(
+    DEFAULT_CATEGORIES
+  );
+  const [presentationsList, setPresentationsList] = useState<PresentationOption[]>(
+    DEFAULT_PRESENTATIONS
+  );
   const [isLoadingData, setIsLoadingData] = useState<boolean>(false);
   const [dbError, setDbError] = useState<string | null>(null);
 
@@ -335,15 +546,30 @@ export default function App() {
   const [restockQuantityInput, setRestockQuantityInput] = useState<number>(30);
   const [restockExpiryInput, setRestockExpiryInput] = useState<string>(getOffsetDateISO(365));
 
-  // Estados do Formulário de Cadastro / Edição
+  // Estados do Gerenciador de Categorias e Apresentações (Aba 'opcoes')
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryColor, setNewCategoryColor] = useState<CategoryColorKey>('sky');
+  const [editingCategoryIndex, setEditingCategoryIndex] = useState<number | null>(null);
+  const [editingCategoryValue, setEditingCategoryValue] = useState('');
+  const [editingCategoryColor, setEditingCategoryColor] = useState<CategoryColorKey>('sky');
+
+  const [newPresName, setNewPresName] = useState('');
+  const [newPresUnit, setNewPresUnit] = useState('');
+  const [newPresDefaultDose, setNewPresDefaultDose] = useState('');
+  const [editingPresIndex, setEditingPresIndex] = useState<number | null>(null);
+  const [editingPresName, setEditingPresName] = useState('');
+  const [editingPresUnit, setEditingPresUnit] = useState('');
+  const [editingPresDefaultDose, setEditingPresDefaultDose] = useState('');
+
+  // Estados do Formulário de Cadastro / Edição de Medicamentos
   const [editingMedId, setEditingMedId] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
   const [formActiveIngredient, setFormActiveIngredient] = useState('');
   const [formPurpose, setFormPurpose] = useState('');
   const [formSelectedTags, setFormSelectedTags] = useState<string[]>([]);
   const [formCustomTagsText, setFormCustomTagsText] = useState('');
-  const [formCategory, setFormCategory] = useState<MedicationCategory>('Uso Contínuo');
-  const [formType, setFormType] = useState<MedicationFormType>('Comprimido');
+  const [formCategory, setFormCategory] = useState<string>(DEFAULT_CATEGORIES[0].name);
+  const [formType, setFormType] = useState<string>(DEFAULT_PRESENTATIONS[0].name);
   const [formDosageInstruction, setFormDosageInstruction] = useState('');
   const [formControlled, setFormControlled] = useState<ControlledType>('Venda Livre / Simples');
   const [formCurrentStock, setFormCurrentStock] = useState<number>(30);
@@ -352,14 +578,27 @@ export default function App() {
   const [formExpiryDate, setFormExpiryDate] = useState<string>(getOffsetDateISO(240));
   const [formLastPaidPrice, setFormLastPaidPrice] = useState<number>(35.0);
   const [formIsActiveTreatment, setFormIsActiveTreatment] = useState<boolean>(false);
-  const [formScheduleTimes, setFormScheduleTimes] = useState<string[]>(['08:00']);
-  const [formNewTimeInput, setFormNewTimeInput] = useState<string>('20:00');
+  const [formScheduleTimes, setFormScheduleTimes] = useState<string[]>([]);
+  const [formNewTimeInput, setFormNewTimeInput] = useState<string>('');
   const [formDoseAmount, setFormDoseAmount] = useState<number>(1);
   const [formDoseDisplay, setFormDoseDisplay] = useState<string>('1 comprimido');
   const [formIsContinuous, setFormIsContinuous] = useState<boolean>(true);
+  const [formTreatmentStartDate, setFormTreatmentStartDate] = useState<string>(getTodayISO());
   const [formTreatmentDays, setFormTreatmentDays] = useState<number>(7);
 
-  // Limpar quaisquer chaves antigas de localStorage (não usamos mais localStorage)
+  // Utilitário para obter o tema visual da categoria de um medicamento
+  const getCategoryTheme = (categoryName: string): CategoryColorTheme => {
+    const matched = categoriesList.find(
+      (c) => c.name.toLowerCase() === (categoryName || '').toLowerCase()
+    );
+    if (matched && CATEGORY_COLOR_THEMES[matched.colorKey]) {
+      return CATEGORY_COLOR_THEMES[matched.colorKey];
+    }
+    const defaultKey = getDefaultColorForCategoryName(categoryName || '');
+    return CATEGORY_COLOR_THEMES[defaultKey] || CATEGORY_COLOR_THEMES.sky;
+  };
+
+  // Limpar quaisquer chaves antigas de localStorage
   useEffect(() => {
     try {
       localStorage.removeItem('cuidamed_medications_v1');
@@ -379,12 +618,14 @@ export default function App() {
       if (!user) {
         setMedications([]);
         setDoseLogs([]);
+        setCategoriesList(DEFAULT_CATEGORIES);
+        setPresentationsList(DEFAULT_PRESENTATIONS);
       }
     });
     return () => unsubscribe();
   }, []);
 
-  // Sincronizar medicamentos e histórico de doses do usuário no Cloud Firestore
+  // Sincronizar medicamentos, histórico e configurações de catálogo do usuário no Cloud Firestore
   useEffect(() => {
     if (!authReady || !currentUser) return;
 
@@ -393,6 +634,7 @@ export default function App() {
 
     const medsPath = `users/${currentUser.uid}/medications`;
     const logsPath = `users/${currentUser.uid}/doseLogs`;
+    const settingsDocPath = `users/${currentUser.uid}/settings/catalog`;
 
     const unsubMeds = onSnapshot(
       collection(db, medsPath),
@@ -427,9 +669,28 @@ export default function App() {
       }
     );
 
+    const unsubSettings = onSnapshot(
+      doc(db, settingsDocPath),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (Array.isArray(data.categories) && data.categories.length > 0) {
+            setCategoriesList(deserializeCategories(data.categories));
+          }
+          if (Array.isArray(data.presentations) && data.presentations.length > 0) {
+            setPresentationsList(deserializePresentations(data.presentations));
+          }
+        }
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, settingsDocPath);
+      }
+    );
+
     return () => {
       unsubMeds();
       unsubLogs();
+      unsubSettings();
     };
   }, [authReady, currentUser]);
 
@@ -441,6 +702,250 @@ export default function App() {
     setTimeout(() => {
       setToastMessage((prev) => (prev?.text === text ? null : prev));
     }, 3500);
+  };
+
+  // ==========================================
+  // PERSISTÊNCIA DAS CATEGORIAS E APRESENTAÇÕES NO FIRESTORE
+  // ==========================================
+
+  const saveCatalogSettingsToFirestore = async (
+    nextCategories: CategoryOption[],
+    nextPresentations: PresentationOption[]
+  ) => {
+    if (!currentUser) return;
+    const docRef = doc(db, `users/${currentUser.uid}/settings`, 'catalog');
+    const payload = {
+      id: 'catalog',
+      userId: currentUser.uid,
+      categories: serializeCategories(nextCategories.slice(0, 50)).map((c) =>
+        c.slice(0, 80)
+      ),
+      presentations: serializePresentations(nextPresentations.slice(0, 50)).map(
+        (p) => p.slice(0, 160)
+      )
+    };
+    try {
+      await setDoc(docRef, payload);
+    } catch (error) {
+      handleFirestoreError(
+        error,
+        OperationType.WRITE,
+        `users/${currentUser.uid}/settings/catalog`
+      );
+    }
+  };
+
+  // Adicionar nova categoria com cor personalizada
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) {
+      showToast('Atenção: Digite o nome da nova categoria.', 'warning');
+      return;
+    }
+    if (
+      categoriesList.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())
+    ) {
+      showToast('Atenção: Esta categoria já existe na lista.', 'warning');
+      return;
+    }
+    const updated: CategoryOption[] = [
+      ...categoriesList,
+      { name: trimmed, colorKey: newCategoryColor }
+    ];
+    setCategoriesList(updated);
+    setNewCategoryName('');
+    await saveCatalogSettingsToFirestore(updated, presentationsList);
+    showToast(`Categoria "${trimmed}" adicionada com sucesso.`, 'success');
+  };
+
+  // Salvar edição de categoria existente (nome e/ou cor) e atualizar medicamentos vinculados
+  const handleSaveCategoryEdit = async (index: number) => {
+    const trimmed = editingCategoryValue.trim();
+    if (!trimmed) {
+      showToast('Atenção: O nome da categoria não pode ficar vazio.', 'warning');
+      return;
+    }
+    const oldCat = categoriesList[index];
+    if (
+      categoriesList.some(
+        (c, idx) => idx !== index && c.name.toLowerCase() === trimmed.toLowerCase()
+      )
+    ) {
+      showToast('Atenção: Já existe outra categoria com este nome.', 'warning');
+      return;
+    }
+
+    const updatedCategories = categoriesList.map((c, idx) =>
+      idx === index ? { name: trimmed, colorKey: editingCategoryColor } : c
+    );
+    setCategoriesList(updatedCategories);
+    setEditingCategoryIndex(null);
+    setEditingCategoryValue('');
+
+    await saveCatalogSettingsToFirestore(updatedCategories, presentationsList);
+
+    // Atualizar categoria nos medicamentos que usavam o nome antigo
+    if (currentUser && oldCat.name !== trimmed) {
+      const affectedMeds = medications.filter((m) => m.category === oldCat.name);
+      if (affectedMeds.length > 0) {
+        const batch = writeBatch(db);
+        affectedMeds.forEach((m) => {
+          batch.set(
+            doc(db, `users/${currentUser.uid}/medications`, m.id),
+            { ...m, category: trimmed },
+            { merge: true }
+          );
+        });
+        await batch.commit();
+      }
+      if (formCategory === oldCat.name) setFormCategory(trimmed);
+      if (selectedCategory === oldCat.name) setSelectedCategory(trimmed);
+    }
+
+    showToast(`Categoria "${trimmed}" e cor atualizadas.`, 'success');
+  };
+
+  // Alterar rapidamente apenas a cor de uma categoria existente
+  const handleQuickChangeCategoryColor = async (
+    index: number,
+    colorKey: CategoryColorKey
+  ) => {
+    const updatedCategories = categoriesList.map((c, idx) =>
+      idx === index ? { ...c, colorKey } : c
+    );
+    setCategoriesList(updatedCategories);
+    await saveCatalogSettingsToFirestore(updatedCategories, presentationsList);
+    showToast(
+      `Cor da categoria "${categoriesList[index].name}" alterada para ${CATEGORY_COLOR_THEMES[colorKey].label}.`,
+      'success'
+    );
+  };
+
+  // Excluir categoria
+  const handleDeleteCategory = async (index: number) => {
+    if (categoriesList.length <= 1) {
+      showToast(
+        'Atenção: É necessário manter pelo menos uma categoria cadastrada.',
+        'warning'
+      );
+      return;
+    }
+    const removed = categoriesList[index];
+    const updated = categoriesList.filter((_, idx) => idx !== index);
+    setCategoriesList(updated);
+    if (formCategory === removed.name) setFormCategory(updated[0].name);
+    if (selectedCategory === removed.name) setSelectedCategory('Todos');
+    await saveCatalogSettingsToFirestore(updated, presentationsList);
+    showToast(`Categoria "${removed.name}" removida.`, 'warning');
+  };
+
+  // Adicionar nova apresentação
+  const handleAddPresentation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newPresName.trim();
+    if (!name) {
+      showToast('Atenção: Informe o nome da apresentação.', 'warning');
+      return;
+    }
+    if (
+      presentationsList.some((p) => p.name.toLowerCase() === name.toLowerCase())
+    ) {
+      showToast('Atenção: Esta apresentação já está cadastrada.', 'warning');
+      return;
+    }
+    const unit = newPresUnit.trim() || `${name.toLowerCase()}s`;
+    const defDose =
+      newPresDefaultDose.trim() || `1 ${name.toLowerCase()}`;
+
+    const updated = [
+      ...presentationsList,
+      { name, unitLabel: unit, defaultDose: defDose }
+    ];
+    setPresentationsList(updated);
+    setNewPresName('');
+    setNewPresUnit('');
+    setNewPresDefaultDose('');
+    await saveCatalogSettingsToFirestore(categoriesList, updated);
+    showToast(`Apresentação "${name}" adicionada com sucesso.`, 'success');
+  };
+
+  // Salvar edição de apresentação existente
+  const handleSavePresentationEdit = async (index: number) => {
+    const name = editingPresName.trim();
+    if (!name) {
+      showToast('Atenção: O nome da apresentação não pode ficar vazio.', 'warning');
+      return;
+    }
+    const oldPres = presentationsList[index];
+    if (
+      presentationsList.some(
+        (p, idx) => idx !== index && p.name.toLowerCase() === name.toLowerCase()
+      )
+    ) {
+      showToast('Atenção: Já existe outra apresentação com este nome.', 'warning');
+      return;
+    }
+
+    const unit = editingPresUnit.trim() || oldPres.unitLabel;
+    const defDose = editingPresDefaultDose.trim() || oldPres.defaultDose;
+
+    const updatedPresentations = presentationsList.map((p, idx) =>
+      idx === index
+        ? { name, unitLabel: unit, defaultDose: defDose }
+        : p
+    );
+    setPresentationsList(updatedPresentations);
+    setEditingPresIndex(null);
+
+    await saveCatalogSettingsToFirestore(categoriesList, updatedPresentations);
+
+    // Atualizar medicamentos que usavam a apresentação antiga
+    if (currentUser && (oldPres.name !== name || oldPres.unitLabel !== unit)) {
+      const affectedMeds = medications.filter((m) => m.formType === oldPres.name);
+      if (affectedMeds.length > 0) {
+        const batch = writeBatch(db);
+        affectedMeds.forEach((m) => {
+          batch.set(
+            doc(db, `users/${currentUser.uid}/medications`, m.id),
+            { ...m, formType: name, unitLabel: unit },
+            { merge: true }
+          );
+        });
+        await batch.commit();
+      }
+      if (formType === oldPres.name) setFormType(name);
+    }
+
+    showToast(`Apresentação "${name}" atualizada.`, 'success');
+  };
+
+  // Excluir apresentação
+  const handleDeletePresentation = async (index: number) => {
+    if (presentationsList.length <= 1) {
+      showToast(
+        'Atenção: É necessário manter pelo menos uma apresentação cadastrada.',
+        'warning'
+      );
+      return;
+    }
+    const removed = presentationsList[index];
+    const updated = presentationsList.filter((_, idx) => idx !== index);
+    setPresentationsList(updated);
+    if (formType === removed.name) setFormType(updated[0].name);
+    await saveCatalogSettingsToFirestore(categoriesList, updated);
+    showToast(`Apresentação "${removed.name}" removida.`, 'warning');
+  };
+
+  // Restaurar categorias e apresentações padrão
+  const handleResetCatalogDefaults = async () => {
+    setCategoriesList(DEFAULT_CATEGORIES);
+    setPresentationsList(DEFAULT_PRESENTATIONS);
+    await saveCatalogSettingsToFirestore(
+      DEFAULT_CATEGORIES,
+      DEFAULT_PRESENTATIONS
+    );
+    showToast('Categorias e apresentações padrão restauradas.', 'success');
   };
 
   // ==========================================
@@ -700,10 +1205,10 @@ export default function App() {
         id: logId,
         userId: currentUser.uid,
         medicationId: med.id,
-        medicationName: med.name,
-        purpose: med.purpose.split('.')[0],
-        doseDisplay: med.doseDisplay,
-        doseAmount: med.doseAmount,
+        medicationName: med.name.slice(0, 160),
+        purpose: (med.purpose.split('.')[0] || med.purpose).slice(0, 300),
+        doseDisplay: med.doseDisplay.slice(0, 80),
+        doseAmount: Math.max(1, Number(med.doseAmount) || 1),
         date: todayISO,
         scheduledTime,
         takenTime: nowTime,
@@ -887,14 +1392,16 @@ export default function App() {
   };
 
   const resetForm = () => {
+    const defaultCat = categoriesList[0]?.name || DEFAULT_CATEGORIES[0].name;
+    const defaultPres = presentationsList[0] || DEFAULT_PRESENTATIONS[0];
     setEditingMedId(null);
     setFormName('');
     setFormActiveIngredient('');
     setFormPurpose('');
     setFormSelectedTags([]);
     setFormCustomTagsText('');
-    setFormCategory('Uso Contínuo');
-    setFormType('Comprimido');
+    setFormCategory(defaultCat);
+    setFormType(defaultPres.name);
     setFormDosageInstruction('');
     setFormControlled('Venda Livre / Simples');
     setFormCurrentStock(30);
@@ -903,10 +1410,12 @@ export default function App() {
     setFormExpiryDate(getOffsetDateISO(240));
     setFormLastPaidPrice(35.0);
     setFormIsActiveTreatment(false);
-    setFormScheduleTimes(['08:00']);
+    setFormScheduleTimes([]);
+    setFormNewTimeInput('');
     setFormDoseAmount(1);
-    setFormDoseDisplay('1 comprimido');
+    setFormDoseDisplay(defaultPres.defaultDose);
     setFormIsContinuous(true);
+    setFormTreatmentStartDate(getTodayISO());
     setFormTreatmentDays(7);
   };
 
@@ -933,12 +1442,12 @@ export default function App() {
     setFormExpiryDate(med.expiryDate);
     setFormLastPaidPrice(med.lastPaidPrice);
     setFormIsActiveTreatment(med.isActiveTreatment);
-    setFormScheduleTimes(
-      med.scheduleTimes.length > 0 ? med.scheduleTimes : ['08:00']
-    );
+    setFormScheduleTimes([...med.scheduleTimes]);
+    setFormNewTimeInput('');
     setFormDoseAmount(med.doseAmount);
     setFormDoseDisplay(med.doseDisplay);
     setFormIsContinuous(med.isContinuous);
+    setFormTreatmentStartDate(med.treatmentStartDate || getTodayISO());
     setFormTreatmentDays(med.treatmentTotalDays || 7);
     setSelectedMedDetail(null);
     setActiveTab('novo');
@@ -974,14 +1483,26 @@ export default function App() {
       return;
     }
 
-    const unitMap: Record<MedicationFormType, string> = {
-      Comprimido: 'comprimidos',
-      Cápsula: 'cápsulas',
-      Gotas: 'gotas',
-      Xarope: 'ml',
-      Pomada: 'aplicações',
-      Spray: 'jatos'
-    };
+    const effectiveScheduleTimes = formIsActiveTreatment
+      ? Array.from(
+          new Set(
+            formNewTimeInput.trim()
+              ? [...formScheduleTimes, formNewTimeInput.trim()]
+              : [...formScheduleTimes]
+          )
+        ).sort()
+      : [];
+
+    if (formIsActiveTreatment && effectiveScheduleTimes.length === 0) {
+      showToast(
+        'Atenção: Adicione pelo menos um horário de administração para o tratamento ativo.',
+        'warning'
+      );
+      return;
+    }
+
+    const matchedPres = presentationsList.find((p) => p.name === formType);
+    const resolvedUnitLabel = matchedPres ? matchedPres.unitLabel : 'unidades';
 
     const extraTags = formCustomTagsText
       .split(',')
@@ -994,27 +1515,54 @@ export default function App() {
     if (combinedTags.length === 0) combinedTags.push(formCategory);
 
     const dosesPerDay = formIsActiveTreatment
-      ? Math.max(1, formScheduleTimes.length)
+      ? Math.max(1, effectiveScheduleTimes.length)
       : 1;
     const totalDays = formIsContinuous ? 30 : Math.max(1, formTreatmentDays);
     const targetTotalDoses = dosesPerDay * totalDays;
+
+    const chosenStartDate = formTreatmentStartDate || getTodayISO();
+
+    // Calcular doses anteriores automaticamente caso o tratamento tenha começado em data passada
+    const calculatePastCompletedDoses = (): number => {
+      if (!formIsActiveTreatment) return 0;
+      const startObj = new Date(chosenStartDate + 'T00:00:00');
+      const todayObj = new Date(getTodayISO() + 'T00:00:00');
+      const diffDays = Math.floor(
+        (todayObj.getTime() - startObj.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      if (diffDays <= 0) return 0;
+      return Math.min(targetTotalDoses, diffDays * dosesPerDay);
+    };
+
+    const existingMed = editingMedId
+      ? medications.find((m) => m.id === editingMedId)
+      : undefined;
+
+    const resolvedCompletedDosesCount = existingMed
+      ? existingMed.treatmentStartDate !== chosenStartDate
+        ? calculatePastCompletedDoses()
+        : existingMed.completedDosesCount
+      : calculatePastCompletedDoses();
 
     const medId = editingMedId || `med-${Date.now()}`;
     const newMedData: Medication = {
       id: medId,
       userId: currentUser.uid,
-      name: formName.trim(),
-      activeIngredient: formActiveIngredient.trim() || formName.trim(),
-      purpose: formPurpose.trim(),
-      clinicalTags: combinedTags,
-      category: formCategory,
-      formType: formType,
-      unitLabel: unitMap[formType],
-      dosageInstruction:
+      name: formName.trim().slice(0, 160),
+      activeIngredient: (
+        formActiveIngredient.trim() || formName.trim()
+      ).slice(0, 160),
+      purpose: formPurpose.trim().slice(0, 500),
+      clinicalTags: combinedTags.slice(0, 20),
+      category: formCategory.slice(0, 80),
+      formType: formType.slice(0, 40),
+      unitLabel: resolvedUnitLabel.slice(0, 40),
+      dosageInstruction: (
         formDosageInstruction.trim() ||
         (formIsActiveTreatment
-          ? `Administrar ${formDoseDisplay} nos horários: ${formScheduleTimes.join(', ')}.`
-          : `Administrar ${formDoseDisplay} conforme orientação clínica.`),
+          ? `Administrar ${formDoseDisplay} nos horários: ${effectiveScheduleTimes.join(', ')}.`
+          : `Administrar ${formDoseDisplay} conforme orientação clínica.`)
+      ).slice(0, 500),
       controlled:
         formCategory === 'Receita Retida' &&
         formControlled === 'Venda Livre / Simples'
@@ -1029,21 +1577,22 @@ export default function App() {
       expiryDate: formExpiryDate || getOffsetDateISO(180),
       lastPaidPrice: Number(formLastPaidPrice) || 0,
       isActiveTreatment: formIsActiveTreatment,
-      scheduleTimes: formIsActiveTreatment ? [...formScheduleTimes].sort() : [],
+      scheduleTimes: effectiveScheduleTimes.slice(0, 24),
       doseAmount: Math.max(1, Number(formDoseAmount) || 1),
-      doseDisplay: formDoseDisplay.trim() || `1 ${formType.toLowerCase()}`,
+      doseDisplay: (
+        formDoseDisplay.trim() ||
+        matchedPres?.defaultDose ||
+        `1 ${formType.toLowerCase()}`
+      ).slice(0, 80),
       frequencyLabel: formIsActiveTreatment
         ? formIsContinuous
           ? 'Uso Contínuo'
           : `Ciclo de ${totalDays} dias`
         : 'Sob demanda',
       isContinuous: formIsContinuous,
-      treatmentStartDate: getTodayISO(),
+      treatmentStartDate: chosenStartDate.slice(0, 20),
       treatmentTotalDays: totalDays,
-      completedDosesCount: editingMedId
-        ? medications.find((m) => m.id === editingMedId)?.completedDosesCount ||
-          0
-        : 0,
+      completedDosesCount: resolvedCompletedDosesCount,
       targetTotalDoses
     };
 
@@ -1171,7 +1720,6 @@ export default function App() {
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-[#F2F7FA] flex flex-col justify-center items-center px-4 py-10 relative overflow-hidden">
-        {/* Elementos sutis de ambientação clínica em azul e verde claros */}
         <div className="w-full max-w-md">
           <motion.div
             initial={{ opacity: 0, y: 14 }}
@@ -1179,7 +1727,6 @@ export default function App() {
             transition={{ duration: 0.25 }}
             className="bg-white rounded-3xl border border-sky-100 shadow-sm p-7 sm:p-8 space-y-6"
           >
-            {/* Marca e Identidade Clínica */}
             <div className="flex items-center gap-3.5">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-500 to-teal-500 text-white flex items-center justify-center shadow-xs shrink-0">
                 <HeartPulse className="w-6 h-6" />
@@ -1194,7 +1741,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Apresentação Limpa */}
             <div className="space-y-2">
               <h2 className="text-lg font-bold text-slate-900">
                 Acesse seu prontuário pessoal de medicamentos
@@ -1204,7 +1750,6 @@ export default function App() {
               </p>
             </div>
 
-            {/* Pilares do Sistema */}
             <div className="space-y-2.5 bg-sky-50/50 p-4 rounded-2xl border border-sky-100/90">
               <div className="flex items-center gap-2.5 text-xs text-slate-700">
                 <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
@@ -1220,7 +1765,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Notificação de Atenção em Laranja caso ocorra erro de autenticação */}
             {authError && (
               <div className="p-3.5 rounded-2xl bg-orange-50 border border-orange-200 text-orange-900 text-xs flex items-start gap-2.5">
                 <AlertTriangle className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
@@ -1231,7 +1775,6 @@ export default function App() {
               </div>
             )}
 
-            {/* Botão Principal: Entrar com Google */}
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handleGoogleLogin}
@@ -1275,7 +1818,7 @@ export default function App() {
   }
 
   // ==========================================
-  // CONFIGURAÇÃO DOS MENUS DE NAVEGAÇÃO
+  // CONFIGURAÇÃO DOS MENUS DE NAVEGAÇÃO (INCLUINDO CATEGORIAS & APRESENTAÇÕES)
   // ==========================================
 
   const navItems: Array<{
@@ -1322,6 +1865,12 @@ export default function App() {
       label: editingMedId ? 'Editar Medicamento' : 'Cadastrar Medicamento',
       subtitle: 'Incluir item ou prescrição',
       icon: Plus
+    },
+    {
+      id: 'opcoes',
+      label: 'Categorias & Apresentações',
+      subtitle: 'Adicionar ou editar opções',
+      icon: SlidersHorizontal
     }
   ];
 
@@ -1583,6 +2132,7 @@ export default function App() {
                 {activeTab === 'estoque' && 'Estoque & Compras'}
                 {activeTab === 'novo' &&
                   (editingMedId ? 'Editar Medicamento' : 'Cadastrar Medicamento')}
+                {activeTab === 'opcoes' && 'Categorias & Apresentações'}
               </span>
             </div>
 
@@ -1591,7 +2141,7 @@ export default function App() {
             </span>
           </header>
 
-          {/* NOTIFICAÇÃO TOAST HARMONIZADA (VERDE PARA SUCESSO, LARANJA COM SÍMBOLO DE ATENÇÃO PARA AVISOS) */}
+          {/* NOTIFICAÇÃO TOAST HARMONIZADA */}
           <AnimatePresence>
             {toastMessage && (
               <motion.div
@@ -1627,7 +2177,6 @@ export default function App() {
             )}
           </AnimatePresence>
 
-          {/* AVISO LARANJA SE HOUVER REGRAS PENDENTES NO FIRESTORE */}
           {dbError && (
             <div className="mx-4 mt-4 p-4 rounded-2xl bg-orange-50 border border-orange-200 text-orange-900 text-xs flex items-start gap-2.5">
               <AlertTriangle className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
@@ -1661,7 +2210,6 @@ export default function App() {
                     transition={{ duration: 0.16 }}
                     className="space-y-6"
                   >
-                    {/* Banner de Atenção em Laranja se houver alertas de estoque baixo ou validade */}
                     {stockAlerts.totalAlertCount > 0 && (
                       <div
                         onClick={() => {
@@ -1694,7 +2242,6 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Resumo do Dia */}
                     <section className="p-5 rounded-3xl bg-white border border-sky-100 shadow-2xs flex items-center justify-between gap-4">
                       <div className="space-y-1">
                         <span className="text-xs font-semibold text-teal-700">
@@ -1725,7 +2272,6 @@ export default function App() {
                       />
                     </section>
 
-                    {/* Estado Vazio Inicial (Base Limpa) */}
                     {medications.length === 0 ? (
                       <div className="p-8 rounded-3xl bg-white border border-sky-100 text-center space-y-3">
                         <div className="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mx-auto">
@@ -1749,7 +2295,6 @@ export default function App() {
                       </div>
                     ) : (
                       <>
-                        {/* CÍRCULOS DE PROGRESSO DE TRATAMENTO COMPLETO */}
                         {activeTreatmentsProgress.length > 0 && (
                           <section className="space-y-3">
                             <div className="px-1">
@@ -1765,16 +2310,15 @@ export default function App() {
                               {activeTreatmentsProgress.map(
                                 ({ med, completed, target, percentage }) => {
                                   const isLow = med.currentStock <= med.minStockAlert;
+                                  const catTheme = getCategoryTheme(med.category);
                                   const ringColor = isLow
                                     ? 'text-orange-500'
-                                    : percentage >= 80
-                                    ? 'text-teal-600'
-                                    : 'text-sky-600';
+                                    : catTheme.ringTextClass;
 
                                   return (
                                     <div
                                       key={med.id}
-                                      className="p-4 rounded-2xl bg-white border border-sky-100 flex items-center justify-between gap-3"
+                                      className={`p-4 rounded-2xl ${catTheme.cardBgClass} border ${catTheme.cardBorderClass} ${catTheme.accentStripClass} flex items-center justify-between gap-3 transition-colors`}
                                     >
                                       <div
                                         onClick={() => {
@@ -1796,30 +2340,47 @@ export default function App() {
                                           size={56}
                                           strokeWidth={5}
                                           colorClass={ringColor}
-                                          trackColorClass="text-sky-50"
+                                          trackColorClass="text-white/80"
                                           label={`${percentage}%`}
                                           sublabel={med.isContinuous ? 'adesão' : 'ciclo'}
                                         />
                                         <div className="min-w-0 flex-1 space-y-0.5">
+                                          <div className="flex items-center gap-1.5">
+                                            <span
+                                              className={`w-2 h-2 rounded-full shrink-0 ${catTheme.swatchClass}`}
+                                            />
+                                            <span
+                                              className={`text-[11px] font-semibold truncate ${catTheme.badgeTextClass}`}
+                                            >
+                                              {med.category}
+                                            </span>
+                                          </div>
                                           <h3 className="text-sm font-bold text-slate-900 truncate">
                                             {med.name}
                                           </h3>
-                                          <p className="text-xs text-slate-500 truncate">
-                                            {med.category} · {med.frequencyLabel}
+                                          <p className="text-xs text-slate-600 truncate">
+                                            {med.frequencyLabel}
+                                            {med.treatmentStartDate
+                                              ? ` · Início: ${med.treatmentStartDate
+                                                  .split('-')
+                                                  .reverse()
+                                                  .join('/')}`
+                                              : ''}
                                           </p>
-                                          <p className="text-xs font-mono-tabular text-teal-700 font-medium">
+                                          <p
+                                            className={`text-xs font-mono-tabular font-semibold ${catTheme.badgeTextClass}`}
+                                          >
                                             {completed}/{target} doses
                                           </p>
                                         </div>
                                       </div>
 
-                                      {/* Botões diretos para Editar ou Excluir */}
                                       <div className="flex flex-col gap-1 shrink-0">
                                         <button
                                           onClick={() => handleStartEditMedication(med)}
                                           title="Editar medicamento"
                                           aria-label="Editar medicamento"
-                                          className="w-8 h-8 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-800 flex items-center justify-center transition-colors"
+                                          className="w-8 h-8 rounded-lg bg-white/90 hover:bg-white text-sky-900 border border-sky-200/70 flex items-center justify-center transition-colors"
                                         >
                                           <Edit3 className="w-3.5 h-3.5" />
                                         </button>
@@ -1827,7 +2388,7 @@ export default function App() {
                                           onClick={() => setMedToDelete(med)}
                                           title="Excluir medicamento"
                                           aria-label="Excluir medicamento"
-                                          className="w-8 h-8 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition-colors"
+                                          className="w-8 h-8 rounded-lg bg-white/90 hover:bg-rose-50 text-rose-600 border border-rose-200/70 flex items-center justify-center transition-colors"
                                         >
                                           <Trash2 className="w-3.5 h-3.5" />
                                         </button>
@@ -1840,7 +2401,6 @@ export default function App() {
                           </section>
                         )}
 
-                        {/* CRONOGRAMA DE HORÁRIOS DO DIA */}
                         {todayScheduledDoses.length > 0 && (
                           <section className="space-y-4">
                             <h2 className="text-sm font-bold text-slate-800 px-1">
@@ -1867,6 +2427,9 @@ export default function App() {
                                         const isLowStock =
                                           medication.currentStock <=
                                           medication.minStockAlert;
+                                        const catTheme = getCategoryTheme(
+                                          medication.category
+                                        );
 
                                         return (
                                           <motion.div
@@ -1874,20 +2437,25 @@ export default function App() {
                                             layout
                                             className={`p-4 rounded-2xl border transition-colors ${
                                               isTaken
-                                                ? 'bg-emerald-50/50 border-emerald-200/80'
-                                                : 'bg-white border-sky-100'
+                                                ? 'bg-emerald-50/60 border-emerald-200/80 border-l-4 border-l-emerald-500'
+                                                : `${catTheme.cardBgClass} ${catTheme.cardBorderClass} ${catTheme.accentStripClass}`
                                             }`}
                                           >
                                             <div className="flex items-center justify-between gap-3">
                                               <div className="space-y-1 min-w-0 flex-1">
-                                                <div className="flex items-center flex-wrap gap-2 text-xs text-slate-500">
-                                                  <span className="font-mono-tabular font-bold text-sky-800">
+                                                <div className="flex items-center flex-wrap gap-2 text-xs text-slate-600">
+                                                  <span className="font-mono-tabular font-bold text-slate-900">
                                                     {scheduledTime}
                                                   </span>
                                                   <span aria-hidden="true">·</span>
                                                   <span>{medication.doseDisplay}</span>
                                                   <span aria-hidden="true">·</span>
-                                                  <span className="text-teal-700 font-medium truncate">
+                                                  <span
+                                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold text-[11px] ${catTheme.badgeBgClass} ${catTheme.badgeTextClass}`}
+                                                  >
+                                                    <span
+                                                      className={`w-1.5 h-1.5 rounded-full ${catTheme.swatchClass}`}
+                                                    />
                                                     {medication.category}
                                                   </span>
                                                 </div>
@@ -1910,7 +2478,7 @@ export default function App() {
                                                       {medication.unitLabel}
                                                     </span>
                                                   ) : (
-                                                    <span className="text-slate-500">
+                                                    <span className="text-slate-600">
                                                       Estoque: {medication.currentStock}{' '}
                                                       {medication.unitLabel}
                                                     </span>
@@ -1930,7 +2498,7 @@ export default function App() {
                                                   }
                                                   title="Editar medicamento"
                                                   aria-label="Editar medicamento"
-                                                  className="min-h-[42px] min-w-[38px] rounded-xl bg-sky-50/80 hover:bg-sky-100 text-sky-800 flex items-center justify-center transition-colors"
+                                                  className="min-h-[42px] min-w-[38px] rounded-xl bg-white/90 hover:bg-white text-sky-900 border border-sky-200/70 flex items-center justify-center transition-colors"
                                                 >
                                                   <Edit3 className="w-4 h-4" />
                                                 </button>
@@ -1945,7 +2513,7 @@ export default function App() {
                                                   className={`min-h-[42px] px-4 py-2 rounded-xl font-semibold text-xs flex items-center gap-1.5 transition-colors ${
                                                     isTaken
                                                       ? 'bg-teal-600 text-white'
-                                                      : 'bg-sky-50 text-sky-900 hover:bg-teal-600 hover:text-white border border-sky-200/70'
+                                                      : 'bg-white text-sky-950 hover:bg-teal-600 hover:text-white border border-sky-200'
                                                   }`}
                                                 >
                                                   <Check className="w-4 h-4 stroke-[2.5]" />
@@ -1971,7 +2539,7 @@ export default function App() {
                 )}
 
                 {/* =========================================================
-                    ABA 2: HISTÓRICO DE DOSES (ORGANIZADO POR DATA E HORÁRIO)
+                    ABA 2: HISTÓRICO DE DOSES
                 ========================================================= */}
                 {activeTab === 'historico' && (
                   <motion.div
@@ -2134,7 +2702,7 @@ export default function App() {
                 )}
 
                 {/* =========================================================
-                    ABA 3: BIBLIOTECA TERAPÊUTICA (COM BOTÕES EDITAR E EXCLUIR)
+                    ABA 3: BIBLIOTECA TERAPÊUTICA
                 ========================================================= */}
                 {activeTab === 'biblioteca' && (
                   <motion.div
@@ -2161,7 +2729,7 @@ export default function App() {
                           type="text"
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          placeholder="Buscar por sintoma, nome ou tag (ex: Enxaqueca, Vitaminas)..."
+                          placeholder="Buscar por sintoma, nome ou categoria..."
                           className="w-full min-h-[44px] pl-10 pr-9 py-2 rounded-2xl bg-sky-50/40 border border-sky-200/80 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-teal-600"
                         />
                         {searchQuery && (
@@ -2176,19 +2744,36 @@ export default function App() {
                       </div>
 
                       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
-                        {['Todos', ...FIXED_CATEGORIES].map((cat) => (
-                          <button
-                            key={cat}
-                            onClick={() => setSelectedCategory(cat)}
-                            className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
-                              selectedCategory === cat
-                                ? 'bg-teal-600 text-white'
-                                : 'bg-sky-50/80 text-sky-900 hover:bg-sky-100'
-                            }`}
-                          >
-                            {cat}
-                          </button>
-                        ))}
+                        <button
+                          onClick={() => setSelectedCategory('Todos')}
+                          className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                            selectedCategory === 'Todos'
+                              ? 'bg-slate-900 text-white'
+                              : 'bg-sky-50/80 text-sky-900 hover:bg-sky-100'
+                          }`}
+                        >
+                          Todos
+                        </button>
+                        {categoriesList.map((cat) => {
+                          const catTheme = CATEGORY_COLOR_THEMES[cat.colorKey] || CATEGORY_COLOR_THEMES.sky;
+                          const isSelected = selectedCategory === cat.name;
+                          return (
+                            <button
+                              key={cat.name}
+                              onClick={() => setSelectedCategory(cat.name)}
+                              className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors inline-flex items-center gap-1.5 ${
+                                isSelected
+                                  ? 'bg-slate-900 text-white'
+                                  : `${catTheme.badgeBgClass} ${catTheme.badgeTextClass} hover:opacity-90`
+                              }`}
+                            >
+                              <span
+                                className={`w-2 h-2 rounded-full ${catTheme.swatchClass}`}
+                              />
+                              <span>{cat.name}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </section>
 
@@ -2209,24 +2794,36 @@ export default function App() {
                           const isExpired = daysLeft < 0;
                           const isExpiringSoon = daysLeft >= 0 && daysLeft <= 30;
                           const isLowStock = med.currentStock <= med.minStockAlert;
+                          const catTheme = getCategoryTheme(med.category);
 
                           return (
                             <div
                               key={med.id}
-                              className="p-4 rounded-2xl bg-white border border-sky-100 space-y-3"
+                              className={`p-4 rounded-2xl ${catTheme.cardBgClass} border ${catTheme.cardBorderClass} ${catTheme.accentStripClass} space-y-3 transition-colors`}
                             >
                               <div className="flex items-start justify-between gap-3">
-                                <div className="space-y-0.5 min-w-0">
-                                  <div className="flex items-center flex-wrap gap-1.5 text-xs text-teal-700 font-medium">
-                                    <span>{med.category}</span>
-                                    <span aria-hidden="true">·</span>
-                                    <span className="text-slate-500">
+                                <div className="space-y-1 min-w-0">
+                                  <div className="flex items-center flex-wrap gap-1.5 text-xs font-medium">
+                                    <span
+                                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg font-semibold ${catTheme.badgeBgClass} ${catTheme.badgeTextClass}`}
+                                    >
+                                      <span
+                                        className={`w-2 h-2 rounded-full ${catTheme.swatchClass}`}
+                                      />
+                                      {med.category}
+                                    </span>
+                                    <span aria-hidden="true" className="text-slate-400">
+                                      ·
+                                    </span>
+                                    <span className="text-slate-600">
                                       {med.formType}
                                     </span>
                                     {med.controlled !== 'Venda Livre / Simples' && (
                                       <>
-                                        <span aria-hidden="true">·</span>
-                                        <span className="text-sky-800 font-semibold">
+                                        <span aria-hidden="true" className="text-slate-400">
+                                          ·
+                                        </span>
+                                        <span className="text-sky-900 font-semibold">
                                           Receita Retida
                                         </span>
                                       </>
@@ -2236,8 +2833,14 @@ export default function App() {
                                   <h3 className="text-base font-bold text-slate-900">
                                     {med.name}
                                   </h3>
-                                  <p className="text-xs text-slate-500">
+                                  <p className="text-xs text-slate-600">
                                     {med.activeIngredient}
+                                    {med.isActiveTreatment && med.treatmentStartDate
+                                      ? ` · Início do tratamento: ${med.treatmentStartDate
+                                          .split('-')
+                                          .reverse()
+                                          .join('/')}`
+                                      : ''}
                                   </p>
                                 </div>
 
@@ -2253,13 +2856,12 @@ export default function App() {
                                   >
                                     {med.currentStock} {med.unitLabel}
                                   </span>
-                                  <span className="text-[11px] text-slate-500 font-mono-tabular">
+                                  <span className="text-[11px] text-slate-600 font-mono-tabular">
                                     Último: {formatCurrencyBRL(med.lastPaidPrice)}
                                   </span>
                                 </div>
                               </div>
 
-                              {/* Notificação de Atenção em Laranja se estoque baixo ou vencendo */}
                               {(isLowStock || isExpiringSoon) && !isExpired && (
                                 <div className="px-3 py-2 rounded-xl bg-orange-50 border border-orange-200/80 text-orange-800 text-xs font-medium flex items-center gap-2">
                                   <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0" />
@@ -2272,26 +2874,25 @@ export default function App() {
                                 </div>
                               )}
 
-                              <p className="text-xs text-slate-700 bg-sky-50/40 p-3 rounded-xl border border-sky-100/80">
+                              <p className="text-xs text-slate-700 bg-white/85 p-3 rounded-xl border border-white">
                                 <strong className="text-slate-900">
                                   Indicação:{' '}
                                 </strong>
                                 {med.purpose}
                               </p>
 
-                              {/* Rodapé com Ações: Editar, Excluir e Registrar Dose */}
                               <div className="flex items-center justify-between gap-2 pt-1">
                                 <div className="flex items-center gap-1.5">
                                   <button
                                     onClick={() => handleStartEditMedication(med)}
-                                    className="min-h-[36px] px-3 py-1.5 rounded-xl bg-sky-50 text-sky-900 hover:bg-sky-100 text-xs font-semibold transition-colors inline-flex items-center gap-1.5"
+                                    className="min-h-[36px] px-3 py-1.5 rounded-xl bg-white/90 text-sky-900 hover:bg-white border border-sky-200/70 text-xs font-semibold transition-colors inline-flex items-center gap-1.5"
                                   >
                                     <Edit3 className="w-3.5 h-3.5" />
                                     <span>Editar</span>
                                   </button>
                                   <button
                                     onClick={() => setMedToDelete(med)}
-                                    className="min-h-[36px] px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold transition-colors inline-flex items-center gap-1.5"
+                                    className="min-h-[36px] px-3 py-1.5 rounded-xl bg-white/90 text-rose-700 hover:bg-rose-50 border border-rose-200/70 text-xs font-semibold transition-colors inline-flex items-center gap-1.5"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                     <span>Excluir</span>
@@ -2327,7 +2928,6 @@ export default function App() {
                     transition={{ duration: 0.16 }}
                     className="space-y-5"
                   >
-                    {/* Seletor de Sub-aba: Posição de Estoque vs Lista de Compras Automática */}
                     <div className="p-1.5 rounded-2xl bg-white border border-sky-100 grid grid-cols-2 gap-1.5">
                       <button
                         onClick={() => setStockSubTab('inventario')}
@@ -2356,7 +2956,6 @@ export default function App() {
                       </button>
                     </div>
 
-                    {/* SUB-ABA A: LISTA DE COMPRAS AUTOMÁTICA */}
                     {stockSubTab === 'compras' ? (
                       <div className="space-y-4">
                         <section className="p-5 rounded-3xl bg-white border border-teal-200/80 space-y-3">
@@ -2413,101 +3012,116 @@ export default function App() {
                         ) : (
                           <div className="space-y-3">
                             {stockAlerts.shoppingList.map(
-                              ({ medication, isExpired, reason }) => (
-                                <div
-                                  key={medication.id}
-                                  className="p-4 rounded-2xl bg-white border border-orange-200/90 space-y-3"
-                                >
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="space-y-1 min-w-0">
-                                      <div className="flex items-center flex-wrap gap-1.5 text-xs">
-                                        <span
-                                          className={`font-semibold inline-flex items-center gap-1 ${
-                                            isExpired
-                                              ? 'text-rose-600'
-                                              : 'text-orange-600'
-                                          }`}
-                                        >
-                                          <AlertTriangle className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                                          {reason}
-                                        </span>
-                                        {medication.controlled !==
-                                          'Venda Livre / Simples' && (
-                                          <>
-                                            <span aria-hidden="true">·</span>
-                                            <span className="text-sky-800 font-semibold">
-                                              Levar Receita Retida
-                                            </span>
-                                          </>
-                                        )}
+                              ({ medication, isExpired, reason }) => {
+                                const catTheme = getCategoryTheme(
+                                  medication.category
+                                );
+                                return (
+                                  <div
+                                    key={medication.id}
+                                    className={`p-4 rounded-2xl ${catTheme.cardBgClass} border border-orange-200/90 ${catTheme.accentStripClass} space-y-3`}
+                                  >
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="space-y-1 min-w-0">
+                                        <div className="flex items-center flex-wrap gap-1.5 text-xs">
+                                          <span
+                                            className={`font-semibold inline-flex items-center gap-1 ${
+                                              isExpired
+                                                ? 'text-rose-600'
+                                                : 'text-orange-600'
+                                            }`}
+                                          >
+                                            <AlertTriangle className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                                            {reason}
+                                          </span>
+                                          {medication.controlled !==
+                                            'Venda Livre / Simples' && (
+                                            <>
+                                              <span aria-hidden="true">·</span>
+                                              <span className="text-sky-800 font-semibold">
+                                                Levar Receita Retida
+                                              </span>
+                                            </>
+                                          )}
+                                        </div>
+
+                                        <h3 className="text-base font-bold text-slate-900">
+                                          {medication.name}
+                                        </h3>
+                                        <div className="flex items-center flex-wrap gap-1.5 text-xs text-slate-600">
+                                          <span>
+                                            Caixa padrão: {medication.boxCapacity}{' '}
+                                            {medication.unitLabel}
+                                          </span>
+                                          <span aria-hidden="true">·</span>
+                                          <span
+                                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold text-[11px] ${catTheme.badgeBgClass} ${catTheme.badgeTextClass}`}
+                                          >
+                                            <span
+                                              className={`w-1.5 h-1.5 rounded-full ${catTheme.swatchClass}`}
+                                            />
+                                            {medication.category}
+                                          </span>
+                                        </div>
                                       </div>
 
-                                      <h3 className="text-base font-bold text-slate-900">
-                                        {medication.name}
-                                      </h3>
-                                      <p className="text-xs text-slate-500">
-                                        Caixa padrão: {medication.boxCapacity}{' '}
-                                        {medication.unitLabel} · {medication.category}
-                                      </p>
+                                      <div className="text-right shrink-0 bg-white/90 px-3 py-2 rounded-xl border border-sky-100">
+                                        <span className="text-[10px] text-slate-500 block">
+                                          Último preço pago
+                                        </span>
+                                        <span className="font-mono-tabular text-sm font-bold text-sky-950">
+                                          {formatCurrencyBRL(medication.lastPaidPrice)}
+                                        </span>
+                                      </div>
                                     </div>
 
-                                    <div className="text-right shrink-0 bg-sky-50/70 px-3 py-2 rounded-xl border border-sky-100">
-                                      <span className="text-[10px] text-slate-500 block">
-                                        Último preço pago
-                                      </span>
-                                      <span className="font-mono-tabular text-sm font-bold text-sky-950">
-                                        {formatCurrencyBRL(medication.lastPaidPrice)}
-                                      </span>
+                                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-sky-100/70">
+                                      <div className="flex items-center gap-1.5">
+                                        <button
+                                          onClick={() =>
+                                            handleStartEditMedication(medication)
+                                          }
+                                          className="min-h-[36px] px-2.5 py-1 rounded-xl bg-white/90 text-sky-900 hover:bg-white border border-sky-200/70 text-xs font-medium inline-flex items-center gap-1"
+                                        >
+                                          <Edit3 className="w-3.5 h-3.5" />
+                                          <span>Editar</span>
+                                        </button>
+                                        <button
+                                          onClick={() => setMedToDelete(medication)}
+                                          className="min-h-[36px] px-2.5 py-1 rounded-xl bg-white/90 text-rose-700 hover:bg-rose-50 border border-rose-200/70 text-xs font-medium inline-flex items-center gap-1"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                          <span>Excluir</span>
+                                        </button>
+                                      </div>
+
+                                      <button
+                                        onClick={() => {
+                                          setRestockModalMed(medication);
+                                          setRestockPriceInput(
+                                            medication.lastPaidPrice.toFixed(2)
+                                          );
+                                          setRestockQuantityInput(
+                                            medication.boxCapacity
+                                          );
+                                          setRestockExpiryInput(
+                                            getOffsetDateISO(365)
+                                          );
+                                        }}
+                                        className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shrink-0"
+                                      >
+                                        <Check className="w-3.5 h-3.5" />
+                                        <span>Confirmar Compra</span>
+                                      </button>
                                     </div>
                                   </div>
-
-                                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-sky-50">
-                                    <div className="flex items-center gap-1.5">
-                                      <button
-                                        onClick={() =>
-                                          handleStartEditMedication(medication)
-                                        }
-                                        className="min-h-[36px] px-2.5 py-1 rounded-xl bg-sky-50 text-sky-900 hover:bg-sky-100 text-xs font-medium inline-flex items-center gap-1"
-                                      >
-                                        <Edit3 className="w-3.5 h-3.5" />
-                                        <span>Editar</span>
-                                      </button>
-                                      <button
-                                        onClick={() => setMedToDelete(medication)}
-                                        className="min-h-[36px] px-2.5 py-1 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-medium inline-flex items-center gap-1"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                        <span>Excluir</span>
-                                      </button>
-                                    </div>
-
-                                    <button
-                                      onClick={() => {
-                                        setRestockModalMed(medication);
-                                        setRestockPriceInput(
-                                          medication.lastPaidPrice.toFixed(2)
-                                        );
-                                        setRestockQuantityInput(
-                                          medication.boxCapacity
-                                        );
-                                        setRestockExpiryInput(
-                                          getOffsetDateISO(365)
-                                        );
-                                      }}
-                                      className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shrink-0"
-                                    >
-                                      <Check className="w-3.5 h-3.5" />
-                                      <span>Confirmar Compra</span>
-                                    </button>
-                                  </div>
-                                </div>
-                              )
+                                );
+                              }
                             )}
                           </div>
                         )}
                       </div>
                     ) : (
-                      /* SUB-ABA B: POSIÇÃO DE ESTOQUE & VALIDADE */
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
                           <button
@@ -2610,6 +3224,7 @@ export default function App() {
                                 daysLeft >= 0 && daysLeft <= 30;
                               const isLowStock =
                                 med.currentStock <= med.minStockAlert;
+                              const catTheme = getCategoryTheme(med.category);
 
                               const stockPercent = Math.min(
                                 100,
@@ -2624,22 +3239,31 @@ export default function App() {
                                 ? 'bg-rose-500'
                                 : isLowStock || isExpiringSoon
                                 ? 'bg-orange-500'
-                                : 'bg-teal-600';
+                                : catTheme.swatchClass;
 
                               return (
                                 <div
                                   key={med.id}
-                                  className={`p-4 rounded-2xl bg-white border space-y-3 ${
+                                  className={`p-4 rounded-2xl ${catTheme.cardBgClass} border ${catTheme.accentStripClass} space-y-3 ${
                                     isLowStock || isExpiringSoon
                                       ? 'border-orange-200'
                                       : isExpired
                                       ? 'border-rose-200'
-                                      : 'border-sky-100'
+                                      : catTheme.cardBorderClass
                                   }`}
                                 >
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                       <div className="flex items-center flex-wrap gap-1.5 text-xs">
+                                        <span
+                                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold text-[11px] ${catTheme.badgeBgClass} ${catTheme.badgeTextClass}`}
+                                        >
+                                          <span
+                                            className={`w-1.5 h-1.5 rounded-full ${catTheme.swatchClass}`}
+                                          />
+                                          {med.category}
+                                        </span>
+                                        <span aria-hidden="true">·</span>
                                         {isExpired ? (
                                           <span className="font-semibold text-rose-600 inline-flex items-center gap-1">
                                             <AlertCircle className="w-3.5 h-3.5" />
@@ -2652,7 +3276,7 @@ export default function App() {
                                             Atenção: Vence em {daysLeft} dias
                                           </span>
                                         ) : (
-                                          <span className="font-medium text-teal-700">
+                                          <span className="font-medium text-teal-800">
                                             Validade regular (
                                             {formatExpiryMMYYYY(med.expiryDate)})
                                           </span>
@@ -2671,17 +3295,17 @@ export default function App() {
                                       <h3 className="text-sm font-bold text-slate-900 mt-1">
                                         {med.name}
                                       </h3>
-                                      <p className="text-xs text-slate-500 font-mono-tabular">
+                                      <p className="text-xs text-slate-600 font-mono-tabular">
                                         Último preço:{' '}
                                         {formatCurrencyBRL(med.lastPaidPrice)}
                                       </p>
                                     </div>
 
-                                    <div className="flex items-center gap-1 bg-sky-50/80 p-1 rounded-xl shrink-0">
+                                    <div className="flex items-center gap-1 bg-white/90 p-1 rounded-xl border border-sky-100 shrink-0">
                                       <button
                                         onClick={() => handleAdjustStock(med, -1)}
                                         aria-label="Reduzir 1 unidade"
-                                        className="w-7 h-7 rounded-lg bg-white text-slate-700 hover:bg-sky-100 font-mono-tabular font-bold text-xs flex items-center justify-center"
+                                        className="w-7 h-7 rounded-lg bg-sky-50 text-slate-700 hover:bg-sky-100 font-mono-tabular font-bold text-xs flex items-center justify-center"
                                       >
                                         -
                                       </button>
@@ -2691,7 +3315,7 @@ export default function App() {
                                       <button
                                         onClick={() => handleAdjustStock(med, 1)}
                                         aria-label="Adicionar 1 unidade"
-                                        className="w-7 h-7 rounded-lg bg-white text-slate-700 hover:bg-sky-100 font-mono-tabular font-bold text-xs flex items-center justify-center"
+                                        className="w-7 h-7 rounded-lg bg-sky-50 text-slate-700 hover:bg-sky-100 font-mono-tabular font-bold text-xs flex items-center justify-center"
                                       >
                                         +
                                       </button>
@@ -2699,14 +3323,14 @@ export default function App() {
                                   </div>
 
                                   <div className="space-y-1">
-                                    <div className="flex items-center justify-between text-xs text-slate-500">
+                                    <div className="flex items-center justify-between text-xs text-slate-600">
                                       <span>Disponível na caixa</span>
-                                      <span className="font-mono-tabular font-semibold text-slate-800">
+                                      <span className="font-mono-tabular font-semibold text-slate-900">
                                         {med.currentStock} / {med.boxCapacity}{' '}
                                         {med.unitLabel}
                                       </span>
                                     </div>
-                                    <div className="w-full h-2 bg-sky-50 rounded-full overflow-hidden">
+                                    <div className="w-full h-2 bg-white/90 rounded-full overflow-hidden">
                                       <div
                                         className={`h-full rounded-full transition-all duration-300 ${barColor}`}
                                         style={{ width: `${stockPercent}%` }}
@@ -2714,18 +3338,17 @@ export default function App() {
                                     </div>
                                   </div>
 
-                                  {/* Botões de Editar e Excluir diretamente no Card de Estoque */}
-                                  <div className="flex items-center justify-end gap-2 pt-1 border-t border-sky-50">
+                                  <div className="flex items-center justify-end gap-2 pt-1 border-t border-sky-100/70">
                                     <button
                                       onClick={() => handleStartEditMedication(med)}
-                                      className="min-h-[34px] px-3 py-1 rounded-xl bg-sky-50 text-sky-900 hover:bg-sky-100 text-xs font-semibold inline-flex items-center gap-1.5"
+                                      className="min-h-[34px] px-3 py-1 rounded-xl bg-white/90 text-sky-900 hover:bg-white border border-sky-200/70 text-xs font-semibold inline-flex items-center gap-1.5"
                                     >
                                       <Edit3 className="w-3.5 h-3.5" />
                                       <span>Editar</span>
                                     </button>
                                     <button
                                       onClick={() => setMedToDelete(med)}
-                                      className="min-h-[34px] px-3 py-1 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold inline-flex items-center gap-1.5"
+                                      className="min-h-[34px] px-3 py-1 rounded-xl bg-white/90 text-rose-700 hover:bg-rose-50 border border-rose-200/70 text-xs font-semibold inline-flex items-center gap-1.5"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
                                       <span>Excluir</span>
@@ -2755,19 +3378,29 @@ export default function App() {
                     className="space-y-5"
                   >
                     <section className="p-5 rounded-3xl bg-white border border-sky-100 space-y-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <h2 className="text-sm font-bold text-slate-900">
                           1. Identificação Clínica e Categoria
                         </h2>
-                        {editingMedId && (
+                        <div className="flex items-center gap-3">
                           <button
                             type="button"
-                            onClick={resetForm}
-                            className="text-xs font-medium text-slate-500 hover:text-slate-800"
+                            onClick={() => navigateToTab('opcoes')}
+                            className="text-xs font-semibold text-teal-700 hover:text-teal-800 inline-flex items-center gap-1"
                           >
-                            Cancelar edição
+                            <SlidersHorizontal className="w-3.5 h-3.5" />
+                            <span>Gerenciar categorias e cores</span>
                           </button>
-                        )}
+                          {editingMedId && (
+                            <button
+                              type="button"
+                              onClick={resetForm}
+                              className="text-xs font-medium text-slate-500 hover:text-slate-800"
+                            >
+                              Cancelar edição
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       <div className="space-y-3">
@@ -2790,21 +3423,24 @@ export default function App() {
                             <label className="block text-xs font-semibold text-slate-700 mb-1">
                               Categoria Principal
                             </label>
-                            <select
-                              value={formCategory}
-                              onChange={(e) =>
-                                setFormCategory(
-                                  e.target.value as MedicationCategory
-                                )
-                              }
-                              className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm text-slate-800 focus:outline-none focus:bg-white focus:border-teal-600"
-                            >
-                              {FIXED_CATEGORIES.map((cat) => (
-                                <option key={cat} value={cat}>
-                                  {cat}
-                                </option>
-                              ))}
-                            </select>
+                            <div className="relative">
+                              <select
+                                value={formCategory}
+                                onChange={(e) => setFormCategory(e.target.value)}
+                                className="w-full min-h-[44px] pl-9 pr-3.5 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm text-slate-800 focus:outline-none focus:bg-white focus:border-teal-600"
+                              >
+                                {categoriesList.map((cat) => (
+                                  <option key={cat.name} value={cat.name}>
+                                    {cat.name} ({CATEGORY_COLOR_THEMES[cat.colorKey]?.label || 'Azul'})
+                                  </option>
+                                ))}
+                              </select>
+                              <span
+                                className={`w-3.5 h-3.5 rounded-full absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none ${
+                                  getCategoryTheme(formCategory).swatchClass
+                                }`}
+                              />
+                            </div>
                           </div>
 
                           <div>
@@ -2814,26 +3450,26 @@ export default function App() {
                             <select
                               value={formType}
                               onChange={(e) => {
-                                const nextType =
-                                  e.target.value as MedicationFormType;
+                                const nextType = e.target.value;
                                 setFormType(nextType);
-                                if (nextType === 'Gotas')
-                                  setFormDoseDisplay('20 gotas');
-                                else if (nextType === 'Xarope')
-                                  setFormDoseDisplay('10 ml');
-                                else
+                                const matched = presentationsList.find(
+                                  (p) => p.name === nextType
+                                );
+                                if (matched) {
+                                  setFormDoseDisplay(matched.defaultDose);
+                                } else {
                                   setFormDoseDisplay(
                                     `1 ${nextType.toLowerCase()}`
                                   );
+                                }
                               }}
                               className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm text-slate-800 focus:outline-none focus:bg-white focus:border-teal-600"
                             >
-                              <option value="Comprimido">Comprimido</option>
-                              <option value="Cápsula">Cápsula</option>
-                              <option value="Gotas">Gotas</option>
-                              <option value="Xarope">Xarope</option>
-                              <option value="Pomada">Pomada</option>
-                              <option value="Spray">Spray</option>
+                              {presentationsList.map((pres) => (
+                                <option key={pres.name} value={pres.name}>
+                                  {pres.name} ({pres.unitLabel})
+                                </option>
+                              ))}
                             </select>
                           </div>
                         </div>
@@ -2991,14 +3627,18 @@ export default function App() {
                             <label className="block text-xs font-semibold text-slate-700">
                               Horários de Administração
                             </label>
-                            <div className="flex items-center flex-wrap gap-2">
-                              {formScheduleTimes.map((time) => (
-                                <div
-                                  key={time}
-                                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-sky-50 border border-sky-200 text-xs font-mono-tabular font-semibold text-sky-900"
-                                >
-                                  <span>{time}</span>
-                                  {formScheduleTimes.length > 1 && (
+                            {formScheduleTimes.length === 0 ? (
+                              <p className="text-xs text-slate-500 bg-sky-50/50 px-3 py-2 rounded-xl border border-sky-100">
+                                Nenhum horário adicionado. Selecione o horário abaixo e clique em &ldquo;+ Incluir Horário&rdquo; para adicionar quantos horários forem necessários.
+                              </p>
+                            ) : (
+                              <div className="flex items-center flex-wrap gap-2">
+                                {formScheduleTimes.map((time) => (
+                                  <div
+                                    key={time}
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-sky-50 border border-sky-200 text-xs font-mono-tabular font-semibold text-sky-900"
+                                  >
+                                    <span>{time}</span>
                                     <button
                                       type="button"
                                       onClick={() =>
@@ -3008,14 +3648,15 @@ export default function App() {
                                           )
                                         )
                                       }
+                                      aria-label={`Remover horário ${time}`}
                                       className="text-sky-700 hover:text-rose-600"
                                     >
                                       <X className="w-3.5 h-3.5" />
                                     </button>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
 
                             <div className="flex items-center gap-2 pt-1">
                               <input
@@ -3029,15 +3670,21 @@ export default function App() {
                               <button
                                 type="button"
                                 onClick={() => {
+                                  if (!formNewTimeInput) {
+                                    showToast(
+                                      'Atenção: Selecione um horário no campo ao lado para incluir.',
+                                      'warning'
+                                    );
+                                    return;
+                                  }
                                   if (
-                                    formNewTimeInput &&
                                     !formScheduleTimes.includes(formNewTimeInput)
                                   ) {
-                                    setFormScheduleTimes([
-                                      ...formScheduleTimes,
-                                      formNewTimeInput
-                                    ]);
+                                    setFormScheduleTimes(
+                                      [...formScheduleTimes, formNewTimeInput].sort()
+                                    );
                                   }
+                                  setFormNewTimeInput('');
                                 }}
                                 className="min-h-[40px] px-3.5 py-1.5 rounded-xl bg-sky-100/80 hover:bg-sky-200/70 text-xs font-semibold text-sky-900"
                               >
@@ -3046,7 +3693,24 @@ export default function App() {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                Data de Início do Tratamento
+                              </label>
+                              <input
+                                type="date"
+                                value={formTreatmentStartDate}
+                                onChange={(e) =>
+                                  setFormTreatmentStartDate(e.target.value)
+                                }
+                                className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm font-mono-tabular text-slate-800 focus:outline-none focus:bg-white focus:border-teal-600"
+                              />
+                              <p className="text-[11px] text-slate-500 mt-1">
+                                Selecione uma data passada para tratamentos já iniciados
+                              </p>
+                            </div>
+
                             <div>
                               <label className="block text-xs font-semibold text-slate-700 mb-1">
                                 Regime de Prescrição
@@ -3085,7 +3749,7 @@ export default function App() {
                                   onChange={(e) =>
                                     setFormTreatmentDays(Number(e.target.value))
                                   }
-                                  className="w-24 min-h-[44px] px-3 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm font-mono-tabular disabled:opacity-50"
+                                  className="w-20 min-h-[44px] px-3 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm font-mono-tabular disabled:opacity-50"
                                 />
                                 <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
                                   <input
@@ -3118,6 +3782,415 @@ export default function App() {
                       </span>
                     </motion.button>
                   </motion.form>
+                )}
+
+                {/* =========================================================
+                    ABA 6: GERENCIAR CATEGORIAS & APRESENTAÇÕES
+                ========================================================= */}
+                {activeTab === 'opcoes' && (
+                  <motion.div
+                    key="tab-opcoes"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.16 }}
+                    className="space-y-6"
+                  >
+                    {/* Bloco 1: Gerenciar Categorias e Cores dos Cards */}
+                    <section className="p-5 rounded-3xl bg-white border border-sky-100 space-y-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h1 className="text-base font-bold text-slate-900">
+                            Categorias e Cores dos Cards
+                          </h1>
+                          <p className="text-xs text-slate-500">
+                            Cada categoria possui uma cor exclusiva nos cards. Você pode adicionar novas categorias ou editar o nome e a cor das existentes.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleResetCatalogDefaults}
+                          className="min-h-[36px] px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-900 text-xs font-semibold inline-flex items-center gap-1.5 shrink-0"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Restaurar Padrão</span>
+                        </button>
+                      </div>
+
+                      {/* Formulário de Nova Categoria + Seletor de Cor */}
+                      <form
+                        onSubmit={handleAddCategory}
+                        className="p-4 rounded-2xl bg-sky-50/40 border border-sky-100 space-y-3"
+                      >
+                        <p className="text-xs font-bold text-sky-950">
+                          Adicionar Nova Categoria
+                        </p>
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                          <input
+                            type="text"
+                            value={newCategoryName}
+                            onChange={(e) => setNewCategoryName(e.target.value)}
+                            placeholder="Nome da categoria (ex: Oftalmológico, Pediátrico)..."
+                            className="flex-1 min-h-[42px] px-3.5 py-2 rounded-xl bg-white border border-sky-200/80 text-sm text-slate-800 focus:outline-none focus:border-teal-600"
+                          />
+                          <button
+                            type="submit"
+                            className="min-h-[42px] px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shrink-0 inline-flex items-center justify-center gap-1.5"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>Adicionar Categoria</span>
+                          </button>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <span className="text-[11px] font-semibold text-slate-600 block">
+                            Escolha a cor dos cards desta categoria:
+                          </span>
+                          <div className="flex items-center flex-wrap gap-2">
+                            {CATEGORY_COLOR_KEYS.map((colorKey) => {
+                              const theme = CATEGORY_COLOR_THEMES[colorKey];
+                              const isSelected = newCategoryColor === colorKey;
+                              return (
+                                <button
+                                  key={colorKey}
+                                  type="button"
+                                  onClick={() => setNewCategoryColor(colorKey)}
+                                  className={`px-2.5 py-1.5 rounded-xl text-xs font-medium inline-flex items-center gap-1.5 border transition-all ${
+                                    isSelected
+                                      ? `${theme.badgeBgClass} ${theme.badgeTextClass} ring-2 ring-slate-800/20 font-bold`
+                                      : 'bg-white border-sky-100 text-slate-600 hover:bg-sky-50/50'
+                                  }`}
+                                >
+                                  <span
+                                    className={`w-3 h-3 rounded-full ${theme.swatchClass}`}
+                                  />
+                                  <span>{theme.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </form>
+
+                      {/* Lista de Categorias com Editar Nome, Editar Cor e Excluir */}
+                      <div className="space-y-2.5">
+                        {categoriesList.map((cat, idx) => {
+                          const catTheme =
+                            CATEGORY_COLOR_THEMES[cat.colorKey] ||
+                            CATEGORY_COLOR_THEMES.sky;
+                          return (
+                            <div
+                              key={`${cat.name}-${idx}`}
+                              className={`p-3.5 rounded-2xl border ${catTheme.cardBgClass} ${catTheme.cardBorderClass} ${catTheme.accentStripClass} transition-colors`}
+                            >
+                              {editingCategoryIndex === idx ? (
+                                <div className="space-y-3">
+                                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                    <input
+                                      type="text"
+                                      value={editingCategoryValue}
+                                      onChange={(e) =>
+                                        setEditingCategoryValue(e.target.value)
+                                      }
+                                      className="flex-1 min-h-[38px] px-3 py-1.5 rounded-xl bg-white border border-teal-500 text-sm text-slate-900"
+                                    />
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSaveCategoryEdit(idx)}
+                                        className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-teal-600 text-white text-xs font-semibold"
+                                      >
+                                        Salvar
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setEditingCategoryIndex(null)
+                                        }
+                                        className="min-h-[38px] px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-medium"
+                                      >
+                                        Cancelar
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-1.5">
+                                    <span className="text-[11px] font-semibold text-slate-700 block">
+                                      Cor da categoria nos cards:
+                                    </span>
+                                    <div className="flex items-center flex-wrap gap-1.5">
+                                      {CATEGORY_COLOR_KEYS.map((colorKey) => {
+                                        const theme =
+                                          CATEGORY_COLOR_THEMES[colorKey];
+                                        const isSelected =
+                                          editingCategoryColor === colorKey;
+                                        return (
+                                          <button
+                                            key={colorKey}
+                                            type="button"
+                                            onClick={() =>
+                                              setEditingCategoryColor(colorKey)
+                                            }
+                                            className={`px-2.5 py-1 rounded-lg text-xs inline-flex items-center gap-1.5 border transition-all ${
+                                              isSelected
+                                                ? `${theme.badgeBgClass} ${theme.badgeTextClass} ring-2 ring-slate-900/20 font-bold`
+                                                : 'bg-white border-slate-200 text-slate-600'
+                                            }`}
+                                          >
+                                            <span
+                                              className={`w-2.5 h-2.5 rounded-full ${theme.swatchClass}`}
+                                            />
+                                            <span>{theme.label}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                  <div className="flex items-center gap-2.5">
+                                    <span
+                                      className={`w-3.5 h-3.5 rounded-full shrink-0 ${catTheme.swatchClass}`}
+                                    />
+                                    <div>
+                                      <span className="text-sm font-bold text-slate-900 block">
+                                        {cat.name}
+                                      </span>
+                                      <span
+                                        className={`text-[11px] font-medium ${catTheme.badgeTextClass}`}
+                                      >
+                                        Cor atual: {catTheme.label}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap">
+                                    {/* Seletor rápido de bolinhas de cor */}
+                                    <div
+                                      className="flex items-center gap-1 bg-white/85 px-2 py-1 rounded-xl border border-sky-100"
+                                      title="Trocar cor rapidamente"
+                                    >
+                                      {CATEGORY_COLOR_KEYS.map((colorKey) => {
+                                        const theme =
+                                          CATEGORY_COLOR_THEMES[colorKey];
+                                        const isCurrent =
+                                          cat.colorKey === colorKey;
+                                        return (
+                                          <button
+                                            key={colorKey}
+                                            type="button"
+                                            onClick={() =>
+                                              handleQuickChangeCategoryColor(
+                                                idx,
+                                                colorKey
+                                              )
+                                            }
+                                            title={`Cor: ${theme.label}`}
+                                            aria-label={`Mudar cor de ${cat.name} para ${theme.label}`}
+                                            className={`w-5 h-5 rounded-full flex items-center justify-center transition-transform ${
+                                              isCurrent
+                                                ? 'scale-110 ring-2 ring-slate-700'
+                                                : 'opacity-70 hover:opacity-100 hover:scale-105'
+                                            }`}
+                                          >
+                                            <span
+                                              className={`w-3.5 h-3.5 rounded-full ${theme.swatchClass}`}
+                                            />
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingCategoryIndex(idx);
+                                          setEditingCategoryValue(cat.name);
+                                          setEditingCategoryColor(cat.colorKey);
+                                        }}
+                                        aria-label={`Editar categoria ${cat.name}`}
+                                        className="min-h-[34px] px-2.5 py-1 rounded-xl bg-white/90 hover:bg-white text-sky-900 border border-sky-200/70 text-xs font-semibold inline-flex items-center gap-1"
+                                      >
+                                        <Edit3 className="w-3.5 h-3.5" />
+                                        <span>Editar</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteCategory(idx)}
+                                        aria-label={`Excluir categoria ${cat.name}`}
+                                        className="min-h-[34px] px-2.5 py-1 rounded-xl bg-white/90 hover:bg-rose-50 text-rose-700 border border-rose-200/70 text-xs font-semibold inline-flex items-center gap-1"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                        <span>Excluir</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+
+                    {/* Bloco 2: Gerenciar Apresentações */}
+                    <section className="p-5 rounded-3xl bg-white border border-sky-100 space-y-4">
+                      <div>
+                        <h2 className="text-base font-bold text-slate-900">
+                          Apresentações e Unidades
+                        </h2>
+                        <p className="text-xs text-slate-500">
+                          Configure as formas farmacêuticas (Comprimido, Sachê, mL, Ampola, etc.) e suas unidades de estoque
+                        </p>
+                      </div>
+
+                      {/* Formulário de Nova Apresentação */}
+                      <form
+                        onSubmit={handleAddPresentation}
+                        className="p-4 rounded-2xl bg-sky-50/40 border border-sky-100 space-y-3"
+                      >
+                        <p className="text-xs font-bold text-sky-950">
+                          Adicionar Nova Apresentação
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                          <input
+                            type="text"
+                            value={newPresName}
+                            onChange={(e) => setNewPresName(e.target.value)}
+                            placeholder="Nome (ex: Ampola, Colírio)"
+                            className="min-h-[40px] px-3 py-1.5 rounded-xl bg-white border border-sky-200 text-xs text-slate-800"
+                          />
+                          <input
+                            type="text"
+                            value={newPresUnit}
+                            onChange={(e) => setNewPresUnit(e.target.value)}
+                            placeholder="Unidade no estoque (ex: ampolas)"
+                            className="min-h-[40px] px-3 py-1.5 rounded-xl bg-white border border-sky-200 text-xs text-slate-800"
+                          />
+                          <input
+                            type="text"
+                            value={newPresDefaultDose}
+                            onChange={(e) =>
+                              setNewPresDefaultDose(e.target.value)
+                            }
+                            placeholder="Dose padrão (ex: 1 ampola)"
+                            className="min-h-[40px] px-3 py-1.5 rounded-xl bg-white border border-sky-200 text-xs text-slate-800"
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          className="min-h-[40px] px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold inline-flex items-center gap-1.5"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Adicionar Apresentação</span>
+                        </button>
+                      </form>
+
+                      {/* Lista de Apresentações com Editar e Excluir */}
+                      <div className="divide-y divide-sky-50 border border-sky-100 rounded-2xl overflow-hidden">
+                        {presentationsList.map((pres, idx) => (
+                          <div
+                            key={`${pres.name}-${idx}`}
+                            className="p-3.5 bg-white space-y-2"
+                          >
+                            {editingPresIndex === idx ? (
+                              <div className="space-y-2.5">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                  <input
+                                    type="text"
+                                    value={editingPresName}
+                                    onChange={(e) =>
+                                      setEditingPresName(e.target.value)
+                                    }
+                                    placeholder="Nome da apresentação"
+                                    className="min-h-[38px] px-3 py-1.5 rounded-xl bg-sky-50/50 border border-teal-500 text-xs text-slate-900"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={editingPresUnit}
+                                    onChange={(e) =>
+                                      setEditingPresUnit(e.target.value)
+                                    }
+                                    placeholder="Unidade (ex: sachês, ml)"
+                                    className="min-h-[38px] px-3 py-1.5 rounded-xl bg-sky-50/50 border border-teal-500 text-xs text-slate-900"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={editingPresDefaultDose}
+                                    onChange={(e) =>
+                                      setEditingPresDefaultDose(e.target.value)
+                                    }
+                                    placeholder="Dose padrão"
+                                    className="min-h-[38px] px-3 py-1.5 rounded-xl bg-sky-50/50 border border-teal-500 text-xs text-slate-900"
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleSavePresentationEdit(idx)
+                                    }
+                                    className="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-teal-600 text-white text-xs font-semibold"
+                                  >
+                                    Salvar Alterações
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingPresIndex(null)}
+                                    className="min-h-[36px] px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-medium"
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between gap-2">
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-800">
+                                    {pres.name}
+                                  </p>
+                                  <p className="text-xs text-slate-500">
+                                    Unidade: {pres.unitLabel} · Dose sugerida:{' '}
+                                    {pres.defaultDose}
+                                  </p>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingPresIndex(idx);
+                                      setEditingPresName(pres.name);
+                                      setEditingPresUnit(pres.unitLabel);
+                                      setEditingPresDefaultDose(pres.defaultDose);
+                                    }}
+                                    aria-label={`Editar apresentação ${pres.name}`}
+                                    className="min-h-[34px] px-2.5 py-1 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-900 text-xs font-medium inline-flex items-center gap-1"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                    <span>Editar</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleDeletePresentation(idx)
+                                    }
+                                    aria-label={`Excluir apresentação ${pres.name}`}
+                                    className="min-h-[34px] px-2.5 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium inline-flex items-center gap-1"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <span>Excluir</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  </motion.div>
                 )}
               </AnimatePresence>
             )}

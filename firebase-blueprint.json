@@ -73,6 +73,18 @@
         "takenTime",
         "status"
       ]
+    },
+    "UserCatalogSettings": {
+      "title": "UserCatalogSettings",
+      "description": "Configurações personalizadas de categorias e apresentações de medicamentos do usuário.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "categories": { "type": "array" },
+        "presentations": { "type": "array" }
+      },
+      "required": ["id", "userId", "categories", "presentations"]
     }
   },
   "firestore": {
@@ -83,6 +95,10 @@
     "/users/{userId}/doseLogs/{logId}": {
       "schema": { "$ref": "#/entities/DoseLog" },
       "description": "Histórico de doses administradas pelo usuário autenticado."
+    },
+    "/users/{userId}/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/UserCatalogSettings" },
+      "description": "Categorias e apresentações personalizadas pelo usuário."
     }
   }
 }
