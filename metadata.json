@@ -1,0 +1,6 @@
+{
+  "name": "MedCuida — Gestão de Tratamentos e Estoque Clínico",
+  "description": "Sistema mobile-first para gestão de tratamentos médicos, prontuário de doses, biblioteca terapêutica e controle de estoque e reposição de medicamentos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
