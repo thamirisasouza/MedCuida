@@ -1,0 +1,88 @@
+{
+  "entities": {
+    "Medication": {
+      "title": "Medication",
+      "description": "Medicamento cadastrado pelo usuário no controle clínico e estoque residencial.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "activeIngredient": { "type": "string", "maxLength": 160 },
+        "purpose": { "type": "string", "maxLength": 500 },
+        "clinicalTags": { "type": "array" },
+        "category": { "type": "string", "maxLength": 80 },
+        "formType": { "type": "string", "maxLength": 40 },
+        "unitLabel": { "type": "string", "maxLength": 40 },
+        "dosageInstruction": { "type": "string", "maxLength": 500 },
+        "controlled": { "type": "string", "maxLength": 80 },
+        "currentStock": { "type": "number" },
+        "boxCapacity": { "type": "number" },
+        "minStockAlert": { "type": "number" },
+        "expiryDate": { "type": "string", "maxLength": 20 },
+        "lastPaidPrice": { "type": "number" },
+        "isActiveTreatment": { "type": "boolean" },
+        "scheduleTimes": { "type": "array" },
+        "doseAmount": { "type": "number" },
+        "doseDisplay": { "type": "string", "maxLength": 80 },
+        "frequencyLabel": { "type": "string", "maxLength": 80 },
+        "isContinuous": { "type": "boolean" },
+        "treatmentStartDate": { "type": "string", "maxLength": 20 },
+        "treatmentTotalDays": { "type": "number" },
+        "completedDosesCount": { "type": "number" },
+        "targetTotalDoses": { "type": "number" }
+      },
+      "required": [
+        "id",
+        "userId",
+        "name",
+        "purpose",
+        "category",
+        "formType",
+        "currentStock",
+        "boxCapacity",
+        "expiryDate"
+      ]
+    },
+    "DoseLog": {
+      "title": "DoseLog",
+      "description": "Registro cronológico de dose administrada pelo usuário.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "medicationId": { "type": "string", "maxLength": 128 },
+        "medicationName": { "type": "string", "maxLength": 160 },
+        "purpose": { "type": "string", "maxLength": 300 },
+        "doseDisplay": { "type": "string", "maxLength": 80 },
+        "doseAmount": { "type": "number" },
+        "date": { "type": "string", "maxLength": 20 },
+        "scheduledTime": { "type": "string", "maxLength": 10 },
+        "takenTime": { "type": "string", "maxLength": 10 },
+        "status": { "type": "string", "enum": ["no_horario", "atrasado", "avulso"] },
+        "notes": { "type": "string", "maxLength": 400 }
+      },
+      "required": [
+        "id",
+        "userId",
+        "medicationId",
+        "medicationName",
+        "doseDisplay",
+        "doseAmount",
+        "date",
+        "takenTime",
+        "status"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/medications/{medicationId}": {
+      "schema": { "$ref": "#/entities/Medication" },
+      "description": "Coleção de medicamentos pertencentes ao usuário autenticado."
+    },
+    "/users/{userId}/doseLogs/{logId}": {
+      "schema": { "$ref": "#/entities/DoseLog" },
+      "description": "Histórico de doses administradas pelo usuário autenticado."
+    }
+  }
+}
