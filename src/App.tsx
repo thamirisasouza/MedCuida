@@ -763,14 +763,15 @@ export default function App() {
       id: logId,
       userId: currentUser.uid,
       medicationId: med.id,
-      medicationName: med.name,
-      purpose: med.purpose.split('.')[0],
-      doseDisplay: med.doseDisplay,
-      doseAmount: med.doseAmount,
+      medicationName: med.name.slice(0, 160),
+      purpose: (med.purpose.split('.')[0] || med.purpose).slice(0, 300),
+      doseDisplay: med.doseDisplay.slice(0, 80),
+      doseAmount: Math.max(1, Number(med.doseAmount) || 1),
       date: customDate || todayISO,
+      scheduledTime: '',
       takenTime: customTime || getCurrentTimeHHMM(),
       status: 'avulso',
-      notes: customNotes || 'Administração sob demanda'
+      notes: (customNotes || 'Administração sob demanda').slice(0, 400)
     };
 
     try {

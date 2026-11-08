@@ -1,0 +1,148 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Default-Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isVerifiedOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidMedication(data, userId, medId) {
+      return data.keys().hasAll([
+        'id', 'userId', 'name', 'activeIngredient', 'purpose',
+        'clinicalTags', 'category', 'formType', 'unitLabel',
+        'dosageInstruction', 'controlled', 'currentStock',
+        'boxCapacity', 'minStockAlert', 'expiryDate', 'lastPaidPrice',
+        'isActiveTreatment', 'scheduleTimes', 'doseAmount',
+        'doseDisplay', 'frequencyLabel', 'isContinuous',
+        'treatmentStartDate', 'treatmentTotalDays',
+        'completedDosesCount', 'targetTotalDoses'
+      ]) &&
+      data.keys().hasOnly([
+        'id', 'userId', 'name', 'activeIngredient', 'purpose',
+        'clinicalTags', 'category', 'formType', 'unitLabel',
+        'dosageInstruction', 'controlled', 'currentStock',
+        'boxCapacity', 'minStockAlert', 'expiryDate', 'lastPaidPrice',
+        'isActiveTreatment', 'scheduleTimes', 'doseAmount',
+        'doseDisplay', 'frequencyLabel', 'isContinuous',
+        'treatmentStartDate', 'treatmentTotalDays',
+        'completedDosesCount', 'targetTotalDoses'
+      ]) &&
+      data.id is string && data.id == medId && data.id.size() <= 128 &&
+      data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+      data.name is string && data.name.size() >= 1 && data.name.size() <= 160 &&
+      data.activeIngredient is string && data.activeIngredient.size() <= 160 &&
+      data.purpose is string && data.purpose.size() >= 1 && data.purpose.size() <= 500 &&
+      data.clinicalTags is list && data.clinicalTags.size() <= 20 &&
+      (data.clinicalTags.size() == 0 || (data.clinicalTags[0] is string && data.clinicalTags[0].size() <= 60)) &&
+      data.category is string && data.category.size() >= 1 && data.category.size() <= 80 &&
+      data.formType is string && data.formType.size() >= 1 && data.formType.size() <= 40 &&
+      data.unitLabel is string && data.unitLabel.size() >= 1 && data.unitLabel.size() <= 40 &&
+      data.dosageInstruction is string && data.dosageInstruction.size() >= 1 && data.dosageInstruction.size() <= 500 &&
+      data.controlled is string && data.controlled.size() >= 1 && data.controlled.size() <= 80 &&
+      data.currentStock is number && data.currentStock >= 0 &&
+      data.boxCapacity is number && data.boxCapacity >= 1 &&
+      data.minStockAlert is number && data.minStockAlert >= 0 &&
+      data.expiryDate is string && data.expiryDate.size() >= 1 && data.expiryDate.size() <= 20 &&
+      data.lastPaidPrice is number && data.lastPaidPrice >= 0 &&
+      data.isActiveTreatment is bool &&
+      data.scheduleTimes is list && data.scheduleTimes.size() <= 24 &&
+      (data.scheduleTimes.size() == 0 || (data.scheduleTimes[0] is string && data.scheduleTimes[0].size() <= 10)) &&
+      data.doseAmount is number && data.doseAmount >= 1 &&
+      data.doseDisplay is string && data.doseDisplay.size() >= 1 && data.doseDisplay.size() <= 80 &&
+      data.frequencyLabel is string && data.frequencyLabel.size() >= 1 && data.frequencyLabel.size() <= 80 &&
+      data.isContinuous is bool &&
+      data.treatmentStartDate is string && data.treatmentStartDate.size() <= 20 &&
+      data.treatmentTotalDays is number && data.treatmentTotalDays >= 1 &&
+      data.completedDosesCount is number && data.completedDosesCount >= 0 &&
+      data.targetTotalDoses is number && data.targetTotalDoses >= 1;
+    }
+
+    function isValidDoseLog(data, userId, logId) {
+      return data.keys().hasAll([
+        'id', 'userId', 'medicationId', 'medicationName', 'purpose',
+        'doseDisplay', 'doseAmount', 'date', 'scheduledTime',
+        'takenTime', 'status', 'notes'
+      ]) &&
+      data.keys().hasOnly([
+        'id', 'userId', 'medicationId', 'medicationName', 'purpose',
+        'doseDisplay', 'doseAmount', 'date', 'scheduledTime',
+        'takenTime', 'status', 'notes'
+      ]) &&
+      data.id is string && data.id == logId && data.id.size() <= 128 &&
+      data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+      data.medicationId is string && data.medicationId.size() >= 1 && data.medicationId.size() <= 128 &&
+      data.medicationName is string && data.medicationName.size() >= 1 && data.medicationName.size() <= 160 &&
+      data.purpose is string && data.purpose.size() <= 300 &&
+      data.doseDisplay is string && data.doseDisplay.size() >= 1 && data.doseDisplay.size() <= 80 &&
+      data.doseAmount is number && data.doseAmount >= 1 &&
+      data.date is string && data.date.size() >= 1 && data.date.size() <= 20 &&
+      data.scheduledTime is string && data.scheduledTime.size() <= 10 &&
+      data.takenTime is string && data.takenTime.size() >= 1 && data.takenTime.size() <= 10 &&
+      data.status is string && data.status in ['no_horario', 'atrasado', 'avulso'] &&
+      data.notes is string && data.notes.size() <= 400;
+    }
+
+    match /users/{userId}/medications/{medicationId} {
+      allow get: if isOwner(userId) && isValidId(userId) && isValidId(medicationId);
+      allow list: if isOwner(userId);
+      allow create: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(medicationId) && isValidMedication(incoming(), userId, medicationId);
+      allow update: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(medicationId) &&
+        isValidMedication(incoming(), userId, medicationId) &&
+        incoming().id == existing().id &&
+        incoming().userId == existing().userId &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'activeIngredient', 'purpose', 'clinicalTags',
+          'category', 'formType', 'unitLabel', 'dosageInstruction',
+          'controlled', 'currentStock', 'boxCapacity', 'minStockAlert',
+          'expiryDate', 'lastPaidPrice', 'isActiveTreatment',
+          'scheduleTimes', 'doseAmount', 'doseDisplay',
+          'frequencyLabel', 'isContinuous', 'treatmentStartDate',
+          'treatmentTotalDays', 'completedDosesCount', 'targetTotalDoses'
+        ]);
+      allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(medicationId);
+    }
+
+    match /users/{userId}/doseLogs/{logId} {
+      allow get: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+      allow list: if isOwner(userId);
+      allow create: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(logId) && isValidDoseLog(incoming(), userId, logId);
+      allow update: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(logId) &&
+        isValidDoseLog(incoming(), userId, logId) &&
+        incoming().id == existing().id &&
+        incoming().userId == existing().userId &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'takenTime', 'status', 'notes'
+        ]);
+      allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(logId);
+    }
+  }
+}

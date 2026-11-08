@@ -7,20 +7,11 @@ import { initializeApp } from 'firebase/app';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
-
-const firebaseConfig = {
-  apiKey: 'AIzaSyDYqFUqFYYiwBdEK_UeWLwm69LpYCQ3834',
-  authDomain: 'medcuida1.firebaseapp.com',
-  projectId: 'medcuida1',
-  storageBucket: 'medcuida1.firebasestorage.app',
-  messagingSenderId: '283660936326',
-  appId: '1:283660936326:web:b6c2d3fb027e83b69f5d07',
-  measurementId: 'G-9XLR897EJ2'
-};
+import firebaseConfig from '../firebase-applet-config.json';
 
 export const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
@@ -99,5 +90,5 @@ export function handleFirestoreError(
     path
   };
   console.error('Firestore Error: ', JSON.stringify(errInfo));
-  return errInfo;
+  throw new Error(JSON.stringify(errInfo));
 }
