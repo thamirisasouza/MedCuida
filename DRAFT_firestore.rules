@@ -122,6 +122,48 @@ service cloud.firestore {
         data.presentations[0] is string && data.presentations[0].size() <= 160;
     }
 
+    function isValidMedicationBula(data, userId, bulaId) {
+      return data.keys().hasAll([
+        'id', 'userId', 'medicationId', 'medicationName', 'activeIngredient',
+        'therapeuticClass', 'indications', 'howItWorks', 'contraindications',
+        'warnings', 'interactionsSummary', 'posologyGuidance', 'bestTimeGuidance',
+        'recommendedTimes', 'administrationTips', 'missedDoseGuidance',
+        'adverseReactions', 'storageAdvice', 'interactingSubstances',
+        'sourceApi', 'downloadedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'id', 'userId', 'medicationId', 'medicationName', 'activeIngredient',
+        'therapeuticClass', 'indications', 'howItWorks', 'contraindications',
+        'warnings', 'interactionsSummary', 'posologyGuidance', 'bestTimeGuidance',
+        'recommendedTimes', 'administrationTips', 'missedDoseGuidance',
+        'adverseReactions', 'storageAdvice', 'interactingSubstances',
+        'sourceApi', 'downloadedAt'
+      ]) &&
+      data.id is string && data.id == bulaId && data.id.size() <= 128 &&
+      data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+      data.medicationId is string && data.medicationId.size() >= 1 && data.medicationId.size() <= 128 &&
+      data.medicationName is string && data.medicationName.size() >= 1 && data.medicationName.size() <= 160 &&
+      data.activeIngredient is string && data.activeIngredient.size() <= 160 &&
+      data.therapeuticClass is string && data.therapeuticClass.size() <= 120 &&
+      data.indications is string && data.indications.size() <= 1500 &&
+      data.howItWorks is string && data.howItWorks.size() <= 1200 &&
+      data.contraindications is string && data.contraindications.size() <= 1200 &&
+      data.warnings is string && data.warnings.size() <= 1500 &&
+      data.interactionsSummary is string && data.interactionsSummary.size() <= 1500 &&
+      data.posologyGuidance is string && data.posologyGuidance.size() <= 1200 &&
+      data.bestTimeGuidance is string && data.bestTimeGuidance.size() <= 800 &&
+      data.recommendedTimes is list && data.recommendedTimes.size() <= 12 &&
+      (data.recommendedTimes.size() == 0 || (data.recommendedTimes[0] is string && data.recommendedTimes[0].size() <= 10)) &&
+      data.administrationTips is string && data.administrationTips.size() <= 1000 &&
+      data.missedDoseGuidance is string && data.missedDoseGuidance.size() <= 800 &&
+      data.adverseReactions is string && data.adverseReactions.size() <= 1200 &&
+      data.storageAdvice is string && data.storageAdvice.size() <= 600 &&
+      data.interactingSubstances is list && data.interactingSubstances.size() <= 40 &&
+      (data.interactingSubstances.size() == 0 || (data.interactingSubstances[0] is string && data.interactingSubstances[0].size() <= 80)) &&
+      data.sourceApi is string && data.sourceApi.size() <= 120 &&
+      data.downloadedAt is string && data.downloadedAt.size() <= 40;
+    }
+
     match /users/{userId}/medications/{medicationId} {
       allow get: if isOwner(userId) && isValidId(userId) && isValidId(medicationId);
       allow list: if isOwner(userId);
@@ -166,6 +208,25 @@ service cloud.firestore {
         incoming().userId == existing().userId &&
         incoming().diff(existing()).affectedKeys().hasOnly(['categories', 'presentations']);
       allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(settingId);
+    }
+
+    match /users/{userId}/bulas/{bulaId} {
+      allow get: if isOwner(userId) && isValidId(userId) && isValidId(bulaId);
+      allow list: if isOwner(userId);
+      allow create: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(bulaId) && isValidMedicationBula(incoming(), userId, bulaId);
+      allow update: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(bulaId) &&
+        isValidMedicationBula(incoming(), userId, bulaId) &&
+        incoming().id == existing().id &&
+        incoming().userId == existing().userId &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'medicationId', 'medicationName', 'activeIngredient',
+          'therapeuticClass', 'indications', 'howItWorks', 'contraindications',
+          'warnings', 'interactionsSummary', 'posologyGuidance', 'bestTimeGuidance',
+          'recommendedTimes', 'administrationTips', 'missedDoseGuidance',
+          'adverseReactions', 'storageAdvice', 'interactingSubstances',
+          'sourceApi', 'downloadedAt'
+        ]);
+      allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(bulaId);
     }
   }
 }

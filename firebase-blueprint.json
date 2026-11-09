@@ -85,6 +85,57 @@
         "presentations": { "type": "array" }
       },
       "required": ["id", "userId", "categories", "presentations"]
+    },
+    "MedicationBula": {
+      "title": "MedicationBula",
+      "description": "Bula digital completa, orientações de cronoterapia (melhor horário para tomar) e matriz de interações medicamentosas baixada e salva na biblioteca do usuário.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "medicationId": { "type": "string", "maxLength": 128 },
+        "medicationName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "activeIngredient": { "type": "string", "maxLength": 160 },
+        "therapeuticClass": { "type": "string", "maxLength": 120 },
+        "indications": { "type": "string", "maxLength": 1500 },
+        "howItWorks": { "type": "string", "maxLength": 1200 },
+        "contraindications": { "type": "string", "maxLength": 1200 },
+        "warnings": { "type": "string", "maxLength": 1500 },
+        "interactionsSummary": { "type": "string", "maxLength": 1500 },
+        "posologyGuidance": { "type": "string", "maxLength": 1200 },
+        "bestTimeGuidance": { "type": "string", "maxLength": 800 },
+        "recommendedTimes": { "type": "array" },
+        "administrationTips": { "type": "string", "maxLength": 1000 },
+        "missedDoseGuidance": { "type": "string", "maxLength": 800 },
+        "adverseReactions": { "type": "string", "maxLength": 1200 },
+        "storageAdvice": { "type": "string", "maxLength": 600 },
+        "interactingSubstances": { "type": "array" },
+        "sourceApi": { "type": "string", "maxLength": 120 },
+        "downloadedAt": { "type": "string", "maxLength": 40 }
+      },
+      "required": [
+        "id",
+        "userId",
+        "medicationId",
+        "medicationName",
+        "activeIngredient",
+        "therapeuticClass",
+        "indications",
+        "howItWorks",
+        "contraindications",
+        "warnings",
+        "interactionsSummary",
+        "posologyGuidance",
+        "bestTimeGuidance",
+        "recommendedTimes",
+        "administrationTips",
+        "missedDoseGuidance",
+        "adverseReactions",
+        "storageAdvice",
+        "interactingSubstances",
+        "sourceApi",
+        "downloadedAt"
+      ]
     }
   },
   "firestore": {
@@ -99,6 +150,10 @@
     "/users/{userId}/settings/{settingId}": {
       "schema": { "$ref": "#/entities/UserCatalogSettings" },
       "description": "Categorias e apresentações personalizadas pelo usuário."
+    },
+    "/users/{userId}/bulas/{bulaId}": {
+      "schema": { "$ref": "#/entities/MedicationBula" },
+      "description": "Bulas digitais completas e orientações clínicas salvas na biblioteca do usuário."
     }
   }
 }
