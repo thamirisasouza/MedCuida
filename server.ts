@@ -520,7 +520,92 @@ async function startServer() {
     });
   });
 
-  // Endpoint 1: Busca de medicamentos reais (100% via Catálogo ANVISA + openFDA + RxNav, sem limite de cota!)
+// Consulta de produtos e dosagens variadas na API openFDA NDC (National Drug Code) com busca por prefixo (*)
+interface OpenFdaNdcProduct {
+  name: string;
+  activeIngredient: string;
+  dosageForm: string;
+  pharmClass: string;
+  brandName: string;
+}
+
+async function fetchOpenFdaNdcProducts(query: string): Promise<OpenFdaNdcProduct[]> {
+  try {
+    const enTerm = toEnglishSearchTerm(query);
+    const rawClean = query
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .trim()
+      .split(/\s+/)[0];
+
+    const searchToken = (enTerm && enTerm.length >= 2 ? enTerm : rawClean) || '';
+    if (searchToken.length < 2) return [];
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3200);
+    const encoded = encodeURIComponent(searchToken);
+    const url = `https://api.fda.gov/drug/ndc.json?search=generic_name:${encoded}*+brand_name:${encoded}*&limit=8`;
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'MedCuida-Clinical-NDC/1.0'
+      }
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return [];
+
+    const data = (await res.json()) as {
+      results?: Array<{
+        generic_name?: string;
+        brand_name?: string;
+        dosage_form?: string;
+        pharm_class?: string[];
+        active_ingredients?: Array<{ name?: string; strength?: string }>;
+      }>;
+    };
+
+    const items: OpenFdaNdcProduct[] = [];
+    const seen = new Set<string>();
+
+    for (const hit of data.results || []) {
+      const generic = (hit.generic_name || '').trim();
+      const brand = (hit.brand_name || '').trim();
+      const ing = hit.active_ingredients?.[0];
+      const strengthRaw = (ing?.strength || '')
+        .replace(/\/1\b/g, '')
+        .trim();
+      const baseTitle = brand || generic;
+      if (!baseTitle) continue;
+
+      const formattedTitle =
+        baseTitle.charAt(0).toUpperCase() + baseTitle.slice(1).toLowerCase();
+      const fullName = strengthRaw
+        ? `${formattedTitle} ${strengthRaw}`
+        : formattedTitle;
+      const key = fullName.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      items.push({
+        name: fullName,
+        activeIngredient: generic || brand,
+        dosageForm: hit.dosage_form || 'TABLET',
+        pharmClass: (hit.pharm_class || [])[0] || '',
+        brandName: brand
+      });
+      if (items.length >= 5) break;
+    }
+
+    return items;
+  } catch {
+    return [];
+  }
+}
+
+  // Endpoint 1: Busca de medicamentos reais (100% via Catálogo ANVISA + openFDA NDC/Label + RxNav, sem limite de cota!)
   app.get('/api/medications/search', async (req, res) => {
     const query = String(req.query.q || '').trim();
     if (!query || query.length < 2) {
@@ -530,12 +615,56 @@ async function startServer() {
 
     try {
       const localMatches = searchAnvisaCatalog(query);
-      const [openFdaData, rxNavTerms] = await Promise.all([
-        fetchOpenFdaPackageInsert(query),
-        fetchRxNavCandidates(query)
+      const [ndcProducts, openFdaData, rxNavTerms] = await Promise.all([
+        fetchOpenFdaNdcProducts(query),
+        localMatches.length < 4 ? fetchOpenFdaPackageInsert(query) : Promise.resolve(null),
+        localMatches.length < 4 ? fetchRxNavCandidates(query) : Promise.resolve([])
       ]);
 
       const suggestions: Partial<AnvisaCatalogItem>[] = [...localMatches];
+
+      // Adicionar variações de produtos e dosagens encontradas na openFDA NDC
+      for (const prod of ndcProducts) {
+        const alreadyExists = suggestions.some(
+          (s) => s.name?.toLowerCase() === prod.name.toLowerCase()
+        );
+        if (alreadyExists) continue;
+
+        const chrono = buildChronotherapyGuidance(
+          prod.name,
+          prod.activeIngredient,
+          prod.pharmClass
+        );
+        const isCaps = /capsule/i.test(prod.dosageForm);
+        const isLiquid = /solution|suspension|syrup|liquid|drops/i.test(prod.dosageForm);
+        const formType = isCaps ? 'Cápsula' : isLiquid ? 'Gotas' : 'Comprimido';
+        const unitLabel = isCaps ? 'cápsulas' : isLiquid ? 'ml' : 'comprimidos';
+
+        suggestions.push({
+          id: `ndc-${ suggestions.length }-${Date.now()}`,
+          name: prod.name,
+          brandAliases: prod.brandName ? [prod.brandName] : [],
+          activeIngredient: prod.activeIngredient,
+          therapeuticClass: prod.pharmClass || 'Medicamento Registrado (openFDA)',
+          category: chrono.category,
+          formType,
+          unitLabel,
+          defaultBoxCapacity: chrono.defaultBoxCapacity,
+          defaultDoseAmount: 1,
+          defaultDoseDisplay: `1 ${formType.toLowerCase()}`,
+          defaultFrequencyLabel:
+            chrono.recommendedTimes.length > 1 ? 'De 12 em 12 horas' : '1x ao dia',
+          isContinuous: chrono.isContinuous,
+          defaultTreatmentDays: chrono.defaultTreatmentDays,
+          controlled: chrono.controlled,
+          purpose: `Indicado para o tratamento clínico com ${prod.activeIngredient}.`,
+          dosageInstruction: chrono.administrationTips,
+          clinicalTags: [chrono.category],
+          recommendedTimes: chrono.recommendedTimes,
+          bestTimeGuidance: chrono.bestTimeGuidance,
+          administrationTips: chrono.administrationTips
+        });
+      }
 
       if (openFdaData) {
         const displayTitle =
@@ -564,7 +693,7 @@ async function startServer() {
             id: `openfda-${Date.now()}`,
             name: /\d/.test(displayTitle)
               ? displayTitle
-              : `${displayTitle} (Padrão ANVISA / openFDA)`,
+              : `${displayTitle}`,
             brandAliases: openFdaData.brandNames.slice(0, 3),
             activeIngredient: openFdaData.genericName,
             therapeuticClass: ptClass || 'Medicamento Clínico Registrado',
@@ -595,8 +724,12 @@ async function startServer() {
         }
       }
 
-      if (suggestions.length === 0 && rxNavTerms.length > 0) {
-        rxNavTerms.slice(0, 3).forEach((term, idx) => {
+      if (suggestions.length < 5 && rxNavTerms.length > 0) {
+        rxNavTerms.slice(0, 4).forEach((term, idx) => {
+          const exists = suggestions.some(
+            (s) => s.name?.toLowerCase() === term.toLowerCase()
+          );
+          if (exists) return;
           const chrono = buildChronotherapyGuidance(term, term, '');
           suggestions.push({
             id: `rxnav-${idx}-${Date.now()}`,
@@ -614,8 +747,8 @@ async function startServer() {
             isContinuous: chrono.isContinuous,
             defaultTreatmentDays: chrono.defaultTreatmentDays,
             controlled: chrono.controlled,
-            purpose: `Medicamento à base de ${term} para controle terapêutico conforme prescrição.`,
-            dosageInstruction: 'Seguir rigorosamente a orientação médica.',
+            purpose: `Medicamento à base de ${term} conforme prescrição.`,
+            dosageInstruction: 'Seguir orientação médica.',
             clinicalTags: [chrono.category],
             recommendedTimes: chrono.recommendedTimes,
             bestTimeGuidance: chrono.bestTimeGuidance,
@@ -624,7 +757,7 @@ async function startServer() {
         });
       }
 
-      res.json({ suggestions: suggestions.slice(0, 6) });
+      res.json({ suggestions: suggestions.slice(0, 12) });
     } catch {
       res.status(200).json({ suggestions: [] });
     }

@@ -707,6 +707,7 @@ export default function App() {
   const [formExpiryDate, setFormExpiryDate] = useState<string>(getOffsetDateISO(240));
   const [formLastPaidPrice, setFormLastPaidPrice] = useState<number | ''>(35.0);
   const [formIsActiveTreatment, setFormIsActiveTreatment] = useState<boolean>(false);
+  const [formIntervalHours, setFormIntervalHours] = useState<number | ''>('');
   const [formScheduleTimes, setFormScheduleTimes] = useState<string[]>([]);
   const [formNewTimeInput, setFormNewTimeInput] = useState<string>('');
   const [formDoseAmount, setFormDoseAmount] = useState<number | ''>(1);
@@ -715,6 +716,42 @@ export default function App() {
   const [formTreatmentStartDate, setFormTreatmentStartDate] = useState<string>(getTodayISO());
   const [formTreatmentStartTime, setFormTreatmentStartTime] = useState<string>('08:00');
   const [formTreatmentDays, setFormTreatmentDays] = useState<number | ''>(7);
+
+  // Calcula automaticamente os melhores horários do dia a partir do intervalo em horas e do 1º horário
+  const generateScheduleTimesByInterval = (
+    intervalHours: number,
+    baseStartTime?: string
+  ): string[] => {
+    const cleanInterval = Math.max(1, Math.min(24, Math.round(intervalHours)));
+    const defaultStartByInterval: Record<number, string> = {
+      24: '08:00',
+      12: '08:00',
+      8: '07:00',
+      6: '06:00',
+      4: '06:00'
+    };
+    const startStr =
+      baseStartTime && /^\d{2}:\d{2}$/.test(baseStartTime)
+        ? baseStartTime
+        : defaultStartByInterval[cleanInterval] || '08:00';
+
+    const [startH, startM] = startStr.split(':').map(Number);
+    const baseMinutes = (startH || 0) * 60 + (startM || 0);
+    const stepMinutes = cleanInterval * 60;
+    const dosesPerDay = Math.max(1, Math.floor((24 * 60) / stepMinutes));
+
+    const times: string[] = [];
+    for (let i = 0; i < dosesPerDay; i++) {
+      const totalMins = (baseMinutes + i * stepMinutes) % (24 * 60);
+      const hh = String(Math.floor(totalMins / 60)).padStart(2, '0');
+      const mm = String(totalMins % 60).padStart(2, '0');
+      const formatted = `${hh}:${mm}`;
+      if (!times.includes(formatted)) {
+        times.push(formatted);
+      }
+    }
+    return times.sort();
+  };
 
   // Estados de Autocompletar ANVISA, Bulas Salvas na Biblioteca e Interações Medicamentosas
   const [savedBulas, setSavedBulas] = useState<Record<string, MedicationBula>>({});
@@ -1616,6 +1653,7 @@ export default function App() {
     setFormExpiryDate(getOffsetDateISO(240));
     setFormLastPaidPrice(35.0);
     setFormIsActiveTreatment(false);
+    setFormIntervalHours('');
     setFormScheduleTimes([]);
     setFormNewTimeInput('');
     setFormDoseAmount(1);
@@ -1630,17 +1668,17 @@ export default function App() {
     setIsAutocompleteOpen(false);
   };
 
-  // Busca remota complementar na API quando o usuário digita um nome que tem poucas sugestões locais
+  // Busca remota complementar na API quando o usuário digita 2+ caracteres
   useEffect(() => {
     const trimmed = formName.trim();
-    if (!isAutocompleteOpen || trimmed.length < 3) {
+    if (!isAutocompleteOpen || trimmed.length < 2) {
       setRemoteSearchSuggestions([]);
       setIsSearchingRemoteCatalog(false);
       return;
     }
 
     const localResults = searchAnvisaCatalog(trimmed);
-    if (localResults.length >= 4) {
+    if (localResults.length >= 10) {
       setRemoteSearchSuggestions([]);
       setIsSearchingRemoteCatalog(false);
       return;
@@ -1714,7 +1752,7 @@ export default function App() {
       } finally {
         setIsSearchingRemoteCatalog(false);
       }
-    }, 400);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [formName, isAutocompleteOpen]);
@@ -1726,7 +1764,7 @@ export default function App() {
     const remoteFiltered = remoteSearchSuggestions.filter(
       (r) => !localNames.has(r.name.toLowerCase())
     );
-    return [...local, ...remoteFiltered].slice(0, 8);
+    return [...local, ...remoteFiltered].slice(0, 12);
   }, [formName, remoteSearchSuggestions]);
 
   // Baixar Bula Completa + Analisar Interações e Melhor Horário via API (com fallback instantâneo ANVISA)
@@ -1739,7 +1777,7 @@ export default function App() {
     const activeIng = (targetActiveIngredient ?? formActiveIngredient).trim();
     if (!medName) {
       showToast(
-        'Atenção: Digite o nome do medicamento para buscar a bula e analisar interações.',
+        'Atenção: Digite o nome do medicamento para buscar a bula.',
         'warning'
       );
       return;
@@ -1904,19 +1942,19 @@ export default function App() {
         }
 
         showToast(
-          `Bula digital de "${medName}" pronta e interações verificadas!`,
+          `Bula de "${medName}" pronta!`,
           'success'
         );
       } else if (matchedCatalog) {
         showToast(
-          `Bula oficial ANVISA de "${matchedCatalog.name}" carregada!`,
+          `Bula de "${matchedCatalog.name}" carregada!`,
           'success'
         );
       }
     } catch {
       if (matchedCatalog) {
         showToast(
-          `Bula oficial ANVISA de "${matchedCatalog.name}" carregada!`,
+          `Bula de "${matchedCatalog.name}" carregada!`,
           'success'
         );
       }
@@ -1959,11 +1997,17 @@ export default function App() {
       item.clinicalTags.filter((t) => STANDARD_CLINICAL_TAGS.includes(t))
     );
 
-    // Pré-preencher os melhores horários recomendados para começar a tomar
+    // Pré-preencher os melhores horários recomendados para começar a tomar e intervalo
     if (item.recommendedTimes && item.recommendedTimes.length > 0) {
       setFormIsActiveTreatment(true);
       setFormScheduleTimes([...item.recommendedTimes].sort());
       setFormTreatmentStartTime(item.recommendedTimes[0]);
+      const count = item.recommendedTimes.length;
+      if (count === 1) setFormIntervalHours(24);
+      else if (count === 2) setFormIntervalHours(12);
+      else if (count === 3) setFormIntervalHours(8);
+      else if (count === 4) setFormIntervalHours(6);
+      else setFormIntervalHours(Math.max(1, Math.round(24 / count)));
     }
 
     setIsAutocompleteOpen(false);
@@ -2036,6 +2080,25 @@ export default function App() {
       hasReadyBula: Boolean(pendingBulaDraft || catalogMatch)
     };
   }, [formName, formActiveIngredient, pendingBulaDraft]);
+
+  // Aplica o intervalo "de quantas em quantas horas" calculando os melhores horários automaticamente
+  const applyIntervalSchedule = (
+    intervalValue: number | '',
+    customBaseTime?: string
+  ) => {
+    setFormIntervalHours(intervalValue);
+    if (intervalValue === '' || Number(intervalValue) <= 0) return;
+    const hrs = Math.max(1, Math.min(24, Number(intervalValue)));
+    const recommendedFirst =
+      customBaseTime ||
+      currentFormGuidance?.recommendedTimes?.[0] ||
+      formScheduleTimes[0] ||
+      (hrs === 8 ? '07:00' : hrs <= 6 ? '06:00' : '08:00');
+    const generated = generateScheduleTimesByInterval(hrs, recommendedFirst);
+    setFormIsActiveTreatment(true);
+    setFormScheduleTimes(generated);
+    setFormTreatmentStartTime(recommendedFirst);
+  };
 
   // Painel Geral de Interações entre os medicamentos já cadastrados pelo usuário
   const libraryWideInteractions = useMemo(() => {
@@ -2269,6 +2332,13 @@ export default function App() {
     setFormLastPaidPrice(med.lastPaidPrice);
     setFormIsActiveTreatment(med.isActiveTreatment);
     setFormScheduleTimes([...med.scheduleTimes]);
+    if (med.scheduleTimes.length === 1) setFormIntervalHours(24);
+    else if (med.scheduleTimes.length === 2) setFormIntervalHours(12);
+    else if (med.scheduleTimes.length === 3) setFormIntervalHours(8);
+    else if (med.scheduleTimes.length === 4) setFormIntervalHours(6);
+    else if (med.scheduleTimes.length > 4)
+      setFormIntervalHours(Math.max(1, Math.round(24 / med.scheduleTimes.length)));
+    else setFormIntervalHours('');
     setFormNewTimeInput('');
     setFormDoseAmount(med.doseAmount);
     setFormDoseDisplay(med.doseDisplay);
@@ -2393,6 +2463,13 @@ export default function App() {
       ? Math.min(targetTotalDoses, elapsedDosesCount)
       : (existingMed ? existingMed.completedDosesCount : 0);
 
+    const intervalNum = Number(formIntervalHours) || (effectiveScheduleTimes.length > 0 ? Math.round(24 / effectiveScheduleTimes.length) : 0);
+    const intervalPrefix = intervalNum === 24
+      ? '1x ao dia'
+      : intervalNum > 0
+      ? `De ${intervalNum} em ${intervalNum}h`
+      : `${effectiveScheduleTimes.length}x ao dia`;
+
     const medId = editingMedId || `med-${Date.now()}`;
     const newMedData: Medication = {
       id: medId,
@@ -2409,7 +2486,7 @@ export default function App() {
       dosageInstruction: (
         formDosageInstruction.trim() ||
         (formIsActiveTreatment
-          ? `Administrar ${formDoseDisplay} nos horários: ${effectiveScheduleTimes.join(', ')}.`
+          ? `Administrar ${formDoseDisplay} (${intervalPrefix}) nos horários: ${effectiveScheduleTimes.join(', ')}.`
           : `Administrar ${formDoseDisplay} conforme orientação clínica.`)
       ).slice(0, 500),
       controlled:
@@ -2432,8 +2509,8 @@ export default function App() {
       ).slice(0, 80),
       frequencyLabel: formIsActiveTreatment
         ? formIsContinuous
-          ? 'Uso Contínuo'
-          : `Ciclo de ${totalDays} dias`
+          ? `${intervalPrefix} · Contínuo`
+          : `${intervalPrefix} · ${totalDays} dias`
         : 'Sob demanda',
       isContinuous: formIsContinuous,
       treatmentStartDate: startDateTimeString.slice(0, 20),
@@ -3135,7 +3212,7 @@ export default function App() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
                     transition={{ duration: 0.16 }}
-                    className="space-y-6"
+                    className="space-y-5"
                   >
                     {stockAlerts.totalAlertCount > 0 && (
                       <div
@@ -3151,47 +3228,41 @@ export default function App() {
                             setActiveTab('estoque');
                           }
                         }}
-                        className="p-4 rounded-2xl bg-orange-50 border border-orange-200/90 flex items-center justify-between gap-3 cursor-pointer hover:bg-orange-100/70 transition-colors"
+                        className="p-3.5 rounded-2xl bg-orange-50 border border-orange-200/90 flex items-center justify-between gap-3 cursor-pointer hover:bg-orange-100/70 transition-colors"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
-                            <AlertTriangle className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-orange-950">
-                              Atenção ao Estoque e Validade ({stockAlerts.totalAlertCount})
-                            </p>
-                            <p className="text-[11px] text-orange-800">
-                              Toque para verificar os itens em alerta e a Lista de Compras.
-                            </p>
-                          </div>
+                        <div className="flex items-center gap-2.5">
+                          <AlertTriangle className="w-4 h-4 text-orange-600 shrink-0" />
+                          <span className="text-xs font-bold text-orange-950">
+                            {stockAlerts.totalAlertCount}{' '}
+                            {stockAlerts.totalAlertCount === 1
+                              ? 'item em alerta de estoque/validade'
+                              : 'itens em alerta de estoque/validade'}
+                          </span>
                         </div>
+                        <span className="text-[11px] font-bold text-orange-800 shrink-0">
+                          Ver lista →
+                        </span>
                       </div>
                     )}
 
-                    <section className="p-5 rounded-3xl bg-white border border-sky-100 shadow-2xs flex items-center justify-between gap-4">
-                      <div className="space-y-1">
+                    <section className="p-4 sm:p-5 rounded-3xl bg-white border border-sky-100 shadow-2xs flex items-center justify-between gap-4">
+                      <div className="space-y-0.5">
                         <span className="text-xs font-semibold text-teal-700">
-                          Acompanhamento Diário
+                          Resumo do Dia
                         </span>
-                        <h1 className="text-lg font-bold text-slate-900 tracking-tight">
+                        <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
                           {totalDosesToday === 0
-                            ? 'Nenhum tratamento ativo programado'
+                            ? 'Nenhuma dose programada'
                             : takenDosesToday === totalDosesToday
-                            ? 'Todas as doses de hoje foram concluídas'
-                            : `Você administrou ${takenDosesToday} de ${totalDosesToday} doses hoje`}
+                            ? 'Doses de hoje concluídas!'
+                            : `${takenDosesToday} de ${totalDosesToday} doses tomadas`}
                         </h1>
-                        <p className="text-xs text-slate-500">
-                          {totalDosesToday === 0
-                            ? 'Cadastre seus medicamentos na aba Cadastrar (+) para iniciar o acompanhamento.'
-                            : 'Confirme cada horário abaixo para atualizar o prontuário e o estoque.'}
-                        </p>
                       </div>
 
                       <CircularProgress
                         percentage={dailyProgressPercentage}
-                        size={72}
-                        strokeWidth={6}
+                        size={64}
+                        strokeWidth={5.5}
                         colorClass="text-teal-600"
                         trackColorClass="text-sky-100"
                         label={`${takenDosesToday}/${totalDosesToday}`}
@@ -3201,37 +3272,27 @@ export default function App() {
 
                     {medications.length === 0 ? (
                       <div className="p-8 rounded-3xl bg-white border border-sky-100 text-center space-y-3">
-                        <div className="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mx-auto">
-                          <Plus className="w-6 h-6" />
+                        <div className="w-11 h-11 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mx-auto">
+                          <Plus className="w-5 h-5" />
                         </div>
-                        <div className="space-y-1">
-                          <h2 className="text-base font-bold text-slate-900">
-                            Seu inventário clínico está vazio
-                          </h2>
-                          <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                            Cadastre seus medicamentos de uso contínuo ou estoque residencial para acompanhar horários, validades e preços.
-                          </p>
-                        </div>
+                        <h2 className="text-sm font-bold text-slate-900">
+                          Nenhum medicamento cadastrado
+                        </h2>
                         <button
                           onClick={() => navigateToTab('novo')}
-                          className="min-h-[42px] px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-colors inline-flex items-center gap-2"
+                          className="min-h-[42px] px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-colors inline-flex items-center gap-1.5"
                         >
                           <Plus className="w-4 h-4" />
-                          <span>Cadastrar Primeiro Medicamento</span>
+                          <span>Cadastrar Medicamento</span>
                         </button>
                       </div>
                     ) : (
                       <>
                         {activeTreatmentsProgress.length > 0 && (
-                          <section className="space-y-3">
-                            <div className="px-1">
-                              <h2 className="text-sm font-bold text-slate-800">
-                                Progresso dos Tratamentos Ativos
-                              </h2>
-                              <p className="text-xs text-slate-500">
-                                Acompanhe o ciclo de cada tratamento ou edite/exclua diretamente
-                              </p>
-                            </div>
+                          <section className="space-y-2.5">
+                            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 px-1">
+                              Em Tratamento
+                            </h2>
 
                             <div className="grid grid-cols-2 gap-2 sm:gap-3">
                               {activeTreatmentsProgress.map(
@@ -3243,7 +3304,7 @@ export default function App() {
                                     <div
                                       key={med.id}
                                       style={catTheme.cardStyle}
-                                      className="p-2.5 sm:p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 transition-colors relative"
+                                      className="p-2.5 sm:p-3.5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-colors relative"
                                     >
                                       <div
                                         onClick={() => {
@@ -3258,30 +3319,17 @@ export default function App() {
                                             setActiveTab('historico');
                                           }
                                         }}
-                                        className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 cursor-pointer"
+                                        className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
                                       >
                                         <CircularProgress
                                           percentage={percentage}
-                                          size={46}
-                                          strokeWidth={4.5}
+                                          size={42}
+                                          strokeWidth={4}
                                           strokeColor={isLow ? '#f97316' : catTheme.hex}
                                           trackColorClass="text-slate-200/80"
                                           label={`${percentage}%`}
-                                          sublabel={med.isContinuous ? 'adesão' : 'ciclo'}
                                         />
-                                        <div className="min-w-0 flex-1 space-y-0.5">
-                                          <div className="flex items-center gap-1">
-                                            <span
-                                              style={catTheme.swatchStyle}
-                                              className="w-1.5 h-1.5 rounded-full shrink-0"
-                                            />
-                                            <span
-                                              style={{ color: catTheme.hex }}
-                                              className="text-[10px] sm:text-[11px] font-bold truncate"
-                                            >
-                                              {med.category}
-                                            </span>
-                                          </div>
+                                        <div className="min-w-0 flex-1">
                                           <h3 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
                                             {med.name}
                                           </h3>
@@ -3290,27 +3338,27 @@ export default function App() {
                                           </p>
                                           <p
                                             style={{ color: catTheme.hex }}
-                                            className="text-[10px] sm:text-xs font-mono-tabular font-semibold"
+                                            className="text-[10px] font-mono-tabular font-semibold"
                                           >
                                             {completed}/{target} doses
                                           </p>
                                         </div>
                                       </div>
 
-                                      <div className="flex items-center sm:flex-col justify-end gap-1 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-black/5">
+                                      <div className="flex items-center sm:flex-col justify-end gap-1 shrink-0">
                                         <button
                                           onClick={() => handleStartEditMedication(med)}
-                                          title="Editar medicamento"
+                                          title="Editar"
                                           aria-label="Editar medicamento"
-                                          className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/90 hover:bg-white text-sky-900 border border-sky-200/70 flex items-center justify-center transition-colors"
+                                          className="w-7 h-7 rounded-lg bg-white/90 hover:bg-white text-sky-900 border border-sky-200/70 flex items-center justify-center transition-colors"
                                         >
                                           <Edit3 className="w-3.5 h-3.5" />
                                         </button>
                                         <button
                                           onClick={() => setMedToDelete(med)}
-                                          title="Excluir medicamento"
+                                          title="Excluir"
                                           aria-label="Excluir medicamento"
-                                          className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/90 hover:bg-rose-50 text-rose-600 border border-rose-200/70 flex items-center justify-center transition-colors"
+                                          className="w-7 h-7 rounded-lg bg-white/90 hover:bg-rose-50 text-rose-600 border border-rose-200/70 flex items-center justify-center transition-colors"
                                         >
                                           <Trash2 className="w-3.5 h-3.5" />
                                         </button>
@@ -3328,42 +3376,28 @@ export default function App() {
                           const archivedDoses = todayScheduledDoses.filter((d) => Boolean(d.takenLog));
 
                           return (
-                            <section className="space-y-4">
+                            <section className="space-y-3.5">
                               <div className="flex items-center justify-between px-1">
-                                <div>
-                                  <h2 className="text-sm font-bold text-slate-800">
-                                    Agenda de Horários
-                                  </h2>
-                                  <p className="text-xs text-slate-500">
-                                    {pendingDoses.length > 0
-                                      ? `Faltam tomar: ${pendingDoses.length} ${pendingDoses.length === 1 ? 'dose' : 'doses'}`
-                                      : 'Todas as doses de hoje foram confirmadas e arquivadas.'}
-                                  </p>
-                                </div>
+                                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                  Horários de Hoje ({pendingDoses.length} pendentes)
+                                </h2>
                                 {archivedDoses.length > 0 && (
-                                  <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100/80 px-2.5 py-1 rounded-full inline-flex items-center gap-1">
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                    {archivedDoses.length} {archivedDoses.length === 1 ? 'arquivada' : 'arquivadas'}
+                                  <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                    {archivedDoses.length} tomadas
                                   </span>
                                 )}
                               </div>
 
-                              {/* Caso todas as doses de hoje já tenham sido tomadas e arquivadas */}
                               {pendingDoses.length === 0 && archivedDoses.length > 0 && (
-                                <div className="p-6 rounded-3xl bg-emerald-50/80 border border-emerald-200 text-center space-y-2">
-                                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center mx-auto shadow-sm">
-                                    <Check className="w-6 h-6 stroke-[2.5]" />
-                                  </div>
-                                  <h3 className="text-base font-bold text-emerald-950">
-                                    Tudo em dia para hoje!
+                                <div className="p-5 rounded-3xl bg-emerald-50/80 border border-emerald-200 text-center space-y-1">
+                                  <Check className="w-6 h-6 text-emerald-600 mx-auto stroke-[2.5]" />
+                                  <h3 className="text-sm font-bold text-emerald-950">
+                                    Tudo em dia hoje!
                                   </h3>
-                                  <p className="text-xs text-emerald-800 max-w-sm mx-auto">
-                                    Todas as {archivedDoses.length} doses programadas foram tomadas e arquivadas. Consulte a lista abaixo caso precise revisar ou desfazer algum registro.
-                                  </p>
                                 </div>
                               )}
 
-                              {/* Horários que AINDA FALTAM TOMAR */}
                               {(['Manhã', 'Tarde', 'Noite'] as const).map((period) => {
                                 const periodPending = pendingDoses.filter(
                                   (d) => d.period === period
@@ -3371,16 +3405,13 @@ export default function App() {
                                 if (periodPending.length === 0) return null;
 
                                 return (
-                                  <div key={period} className="space-y-2.5">
-                                    <div className="flex items-center gap-2 text-xs font-semibold text-sky-800 px-1">
+                                  <div key={period} className="space-y-2">
+                                    <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-900 px-1">
                                       <Clock className="w-3.5 h-3.5 text-sky-600" />
                                       <span>{period}</span>
-                                      <span className="text-[10px] text-slate-500 font-normal">
-                                        ({periodPending.length} a tomar)
-                                      </span>
                                     </div>
 
-                                    <div className="space-y-2.5">
+                                    <div className="space-y-2">
                                       {periodPending.map(
                                         ({ medication, scheduledTime }) => {
                                           const isLowStock =
@@ -3395,47 +3426,28 @@ export default function App() {
                                               key={`${medication.id}-${scheduledTime}`}
                                               layout
                                               style={catTheme.cardStyle}
-                                              className="p-4 rounded-2xl border transition-colors relative"
+                                              className="p-3.5 rounded-2xl border transition-colors relative"
                                             >
                                               <div className="flex items-center justify-between gap-3">
-                                                <div className="space-y-1 min-w-0 flex-1">
-                                                  <div className="flex items-center flex-wrap gap-2 text-xs text-slate-600">
-                                                    <span className="font-mono-tabular font-bold text-slate-900">
+                                                <div className="min-w-0 flex-1 space-y-0.5">
+                                                  <div className="flex items-center flex-wrap gap-1.5 text-xs">
+                                                    <span className="font-mono-tabular font-bold text-slate-900 bg-white/90 px-2 py-0.5 rounded-md border border-slate-200/80">
                                                       {scheduledTime}
                                                     </span>
-                                                    <span aria-hidden="true">·</span>
-                                                    <span>{medication.doseDisplay}</span>
-                                                    <span aria-hidden="true">·</span>
-                                                    <span
-                                                      style={catTheme.badgeStyle}
-                                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold text-[11px] border"
-                                                    >
-                                                      <span
-                                                        style={catTheme.swatchStyle}
-                                                        className="w-1.5 h-1.5 rounded-full"
-                                                      />
-                                                      {medication.category}
+                                                    <span className="text-slate-600 font-medium">
+                                                      {medication.doseDisplay}
                                                     </span>
-                                                  </div>
-
-                                                  <h3 className="text-sm font-bold text-slate-900">
-                                                    {medication.name}
-                                                  </h3>
-
-                                                  <div className="flex items-center flex-wrap gap-2 text-xs font-mono-tabular">
-                                                    {isLowStock ? (
-                                                      <span className="text-orange-600 font-semibold inline-flex items-center gap-1">
-                                                        <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
-                                                        Atenção: Restam {medication.currentStock}{' '}
-                                                        {medication.unitLabel}
-                                                      </span>
-                                                    ) : (
-                                                      <span className="text-slate-600">
-                                                        Estoque: {medication.currentStock}{' '}
-                                                        {medication.unitLabel}
+                                                    {isLowStock && (
+                                                      <span className="text-orange-600 font-semibold text-[11px] inline-flex items-center gap-1">
+                                                        <AlertTriangle className="w-3 h-3" />
+                                                        Restam {medication.currentStock}
                                                       </span>
                                                     )}
                                                   </div>
+
+                                                  <h3 className="text-sm font-bold text-slate-900 truncate pt-0.5">
+                                                    {medication.name}
+                                                  </h3>
                                                 </div>
 
                                                 <div className="flex items-center gap-1.5 shrink-0">
@@ -3443,11 +3455,11 @@ export default function App() {
                                                     onClick={() =>
                                                       handleStartEditMedication(medication)
                                                     }
-                                                    title="Editar medicamento"
+                                                    title="Editar"
                                                     aria-label="Editar medicamento"
-                                                    className="min-h-[42px] min-w-[38px] rounded-xl bg-white/90 hover:bg-white text-sky-900 border border-sky-200/70 flex items-center justify-center transition-colors"
+                                                    className="min-h-[38px] min-w-[36px] rounded-xl bg-white/90 hover:bg-white text-sky-900 border border-sky-200/70 flex items-center justify-center transition-colors"
                                                   >
-                                                    <Edit3 className="w-4 h-4" />
+                                                    <Edit3 className="w-3.5 h-3.5" />
                                                   </button>
                                                   <motion.button
                                                     whileTap={{ scale: 0.95 }}
@@ -3458,7 +3470,7 @@ export default function App() {
                                                         period
                                                       )
                                                     }
-                                                    className="min-h-[42px] px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors bg-teal-600 hover:bg-teal-700 text-white shadow-xs"
+                                                    className="min-h-[38px] px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors bg-teal-600 hover:bg-teal-700 text-white shadow-xs"
                                                   >
                                                     <Check className="w-4 h-4 stroke-[2.5]" />
                                                     <span>Confirmar</span>
@@ -3474,81 +3486,60 @@ export default function App() {
                                 );
                               })}
 
-                              {/* SEÇÃO DE DOSES ARQUIVADAS HOJE */}
                               {archivedDoses.length > 0 && (
-                                <div className="pt-2">
+                                <div className="pt-1">
                                   <button
                                     type="button"
                                     onClick={() =>
                                       setIsArchivedSectionOpen(!isArchivedSectionOpen)
                                     }
-                                    className="w-full p-3.5 rounded-2xl bg-white border border-sky-100 hover:bg-sky-50/50 flex items-center justify-between text-xs font-semibold text-slate-700 transition-colors shadow-2xs"
+                                    className="w-full p-3 rounded-2xl bg-white border border-sky-100 hover:bg-sky-50/50 flex items-center justify-between text-xs font-semibold text-slate-700 transition-colors"
                                   >
-                                    <div className="flex items-center gap-2">
+                                    <span className="flex items-center gap-2">
                                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                                      <span>
-                                        Doses já tomadas hoje ({archivedDoses.length} arquivadas)
-                                      </span>
-                                    </div>
+                                      Arquivadas hoje ({archivedDoses.length})
+                                    </span>
                                     <span className="text-[11px] font-bold text-teal-700">
-                                      {isArchivedSectionOpen
-                                        ? 'Ocultar arquivadas ▲'
-                                        : 'Ver arquivadas ▼'}
+                                      {isArchivedSectionOpen ? 'Ocultar ▲' : 'Mostrar ▼'}
                                     </span>
                                   </button>
 
                                   {isArchivedSectionOpen && (
-                                    <div className="mt-2.5 space-y-2">
+                                    <div className="mt-2 space-y-1.5">
                                       {archivedDoses.map(
-                                        ({ medication, scheduledTime, takenLog }) => {
-                                          const catTheme = getCategoryTheme(
-                                            medication.category
-                                          );
-                                          return (
-                                            <div
-                                              key={`archived-${medication.id}-${scheduledTime}`}
-                                              className="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 flex items-center justify-between gap-3 text-xs"
-                                            >
-                                              <div className="min-w-0 space-y-0.5">
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                  <span className="font-mono-tabular font-bold text-slate-500 line-through">
-                                                    {scheduledTime}
-                                                  </span>
-                                                  <span className="text-emerald-800 font-semibold bg-emerald-100/80 px-2 py-0.5 rounded-md text-[10px]">
-                                                    Tomado às {takenLog?.takenTime}
-                                                  </span>
-                                                  <span
-                                                    style={catTheme.badgeStyle}
-                                                    className="px-1.5 py-0.5 rounded text-[10px] font-semibold border"
-                                                  >
-                                                    {medication.category}
-                                                  </span>
-                                                </div>
-                                                <p className="font-semibold text-slate-800 truncate">
-                                                  {medication.name} ({medication.doseDisplay})
-                                                </p>
-                                                {takenLog?.notes && (
-                                                  <p className="text-[11px] text-slate-500 italic truncate">
-                                                    Obs: {takenLog.notes}
-                                                  </p>
-                                                )}
+                                        ({ medication, scheduledTime, takenLog }) => (
+                                          <div
+                                            key={`archived-${medication.id}-${scheduledTime}`}
+                                            className="p-3 rounded-2xl bg-white/80 border border-slate-200/80 flex items-center justify-between gap-3 text-xs"
+                                          >
+                                            <div className="min-w-0">
+                                              <div className="flex items-center gap-2">
+                                                <span className="font-mono-tabular text-slate-400 line-through">
+                                                  {scheduledTime}
+                                                </span>
+                                                <span className="text-emerald-800 font-semibold bg-emerald-100/80 px-1.5 py-0.5 rounded text-[10px]">
+                                                  Tomado às {takenLog?.takenTime}
+                                                </span>
                                               </div>
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  handleUndoDose(
-                                                    medication,
-                                                    scheduledTime,
-                                                    takenLog!
-                                                  )
-                                                }
-                                                className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 text-slate-600 text-[11px] font-semibold transition-colors shrink-0"
-                                              >
-                                                Desfazer
-                                              </button>
+                                              <p className="font-semibold text-slate-800 truncate mt-0.5">
+                                                {medication.name}
+                                              </p>
                                             </div>
-                                          );
-                                        }
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                handleUndoDose(
+                                                  medication,
+                                                  scheduledTime,
+                                                  takenLog!
+                                                )
+                                              }
+                                              className="px-2.5 py-1 rounded-xl border border-slate-200 bg-white hover:bg-rose-50 hover:text-rose-700 text-slate-600 text-[11px] font-semibold shrink-0"
+                                            >
+                                              Desfazer
+                                            </button>
+                                          </div>
+                                        )
                                       )}
                                     </div>
                                   )}
@@ -3572,18 +3563,13 @@ export default function App() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
                     transition={{ duration: 0.16 }}
-                    className="space-y-5"
+                    className="space-y-4"
                   >
-                    <section className="p-5 rounded-3xl bg-white border border-sky-100 space-y-4">
+                    <section className="p-4 sm:p-5 rounded-3xl bg-white border border-sky-100 space-y-3">
                       <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <h1 className="text-base font-bold text-slate-900">
-                            Prontuário de Doses Administradas
-                          </h1>
-                          <p className="text-xs text-slate-500">
-                            Consulte o histórico cronológico por medicamento
-                          </p>
-                        </div>
+                        <h1 className="text-sm font-bold text-slate-900">
+                          Histórico de Doses ({doseLogs.length})
+                        </h1>
                         {medications.length > 0 && (
                           <button
                             onClick={() => {
@@ -3592,55 +3578,46 @@ export default function App() {
                               setManualDoseTime(getCurrentTimeHHMM());
                               setIsManualDoseModalOpen(true);
                             }}
-                            className="min-h-[40px] px-3.5 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 flex items-center gap-1.5 shrink-0 transition-colors"
+                            className="min-h-[36px] px-3 py-1.5 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 flex items-center gap-1 shrink-0 transition-colors"
                           >
-                            <Plus className="w-4 h-4" />
+                            <Plus className="w-3.5 h-3.5" />
                             <span>Lançar Dose</span>
                           </button>
                         )}
                       </div>
 
-                      <div className="space-y-2">
-                        <label
-                          htmlFor="history-med-filter"
-                          className="text-xs font-semibold text-slate-700 flex items-center gap-1.5"
-                        >
-                          <Filter className="w-3.5 h-3.5 text-sky-600" />
-                          <span>Filtrar por medicamento</span>
-                        </label>
-                        <select
-                          id="history-med-filter"
-                          value={historyMedFilter}
-                          onChange={(e) => setHistoryMedFilter(e.target.value)}
-                          className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-sky-50/50 border border-sky-200/80 text-sm font-medium text-slate-800 focus:outline-none focus:border-teal-600"
-                        >
-                          <option value="TODOS">
-                            Todos os medicamentos ({doseLogs.length} registros)
-                          </option>
-                          {medications.map((med) => {
-                            const count = doseLogs.filter(
-                              (l) => l.medicationId === med.id
-                            ).length;
-                            return (
-                              <option key={med.id} value={med.id}>
-                                {med.name} ({count} registros)
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </div>
+                      <select
+                        id="history-med-filter"
+                        value={historyMedFilter}
+                        onChange={(e) => setHistoryMedFilter(e.target.value)}
+                        className="w-full min-h-[42px] px-3 py-1.5 rounded-xl bg-sky-50/50 border border-sky-200/80 text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:border-teal-600"
+                      >
+                        <option value="TODOS">
+                          Todos os medicamentos ({doseLogs.length})
+                        </option>
+                        {medications.map((med) => {
+                          const count = doseLogs.filter(
+                            (l) => l.medicationId === med.id
+                          ).length;
+                          return (
+                            <option key={med.id} value={med.id}>
+                              {med.name} ({count})
+                            </option>
+                          );
+                        })}
+                      </select>
 
                       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                         {[
                           { id: 'TODOS', label: 'Todos' },
                           { id: 'no_horario', label: 'No horário' },
                           { id: 'atrasado', label: 'Com atraso' },
-                          { id: 'avulso', label: 'Sob demanda' }
+                          { id: 'avulso', label: 'Avulso' }
                         ].map((st) => (
                           <button
                             key={st.id}
                             onClick={() => setHistoryStatusFilter(st.id)}
-                            className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-colors ${
+                            className={`min-h-[32px] px-3 py-1 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-colors ${
                               historyStatusFilter === st.id
                                 ? 'bg-sky-700 text-white'
                                 : 'bg-sky-50/70 text-slate-600 hover:bg-sky-100/70'
@@ -3653,26 +3630,22 @@ export default function App() {
                     </section>
 
                     {groupedHistoryLogs.length === 0 ? (
-                      <div className="p-8 rounded-3xl bg-white border border-sky-100 text-center space-y-2">
-                        <History className="w-7 h-7 text-slate-400 mx-auto" />
+                      <div className="p-8 rounded-3xl bg-white border border-sky-100 text-center space-y-1.5">
+                        <History className="w-6 h-6 text-slate-400 mx-auto" />
                         <p className="text-sm font-semibold text-slate-800">
-                          Nenhum registro de dose encontrado
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Quando você confirmar doses na aba Hoje ou lançar uma dose manual, elas aparecerão aqui organizadas por data e horário.
+                          Nenhum registro encontrado
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-4">
+                      <div className="space-y-3.5">
                         {groupedHistoryLogs.map(([dateStr, logs]) => (
-                          <div key={dateStr} className="space-y-2">
+                          <div key={dateStr} className="space-y-1.5">
                             <div className="flex items-center justify-between px-1">
                               <h3 className="text-xs font-bold text-sky-900">
                                 {formatDateFriendly(dateStr)}
                               </h3>
-                              <span className="font-mono-tabular text-xs text-slate-500">
-                                {logs.length}{' '}
-                                {logs.length === 1 ? 'registro' : 'registros'}
+                              <span className="font-mono-tabular text-[11px] text-slate-500">
+                                {logs.length} {logs.length === 1 ? 'dose' : 'doses'}
                               </span>
                             </div>
 
@@ -3680,10 +3653,10 @@ export default function App() {
                               {logs.map((log) => (
                                 <div
                                   key={log.id}
-                                  className="p-4 flex items-center justify-between gap-3"
+                                  className="p-3.5 flex items-center justify-between gap-3"
                                 >
                                   <div className="flex items-center gap-3 min-w-0">
-                                    <div className="px-2.5 py-1.5 rounded-xl bg-sky-50 text-sky-900 font-mono-tabular text-xs font-semibold shrink-0">
+                                    <div className="px-2.5 py-1 rounded-xl bg-sky-50 text-sky-900 font-mono-tabular text-xs font-bold shrink-0">
                                       {log.takenTime}
                                     </div>
                                     <div className="min-w-0">
@@ -3692,16 +3665,10 @@ export default function App() {
                                       </h4>
                                       <div className="flex items-center flex-wrap gap-1.5 text-xs text-slate-500">
                                         <span>{log.doseDisplay}</span>
-                                        <span aria-hidden="true">·</span>
-                                        <span>{log.purpose}</span>
                                         {log.status === 'atrasado' && (
-                                          <>
-                                            <span aria-hidden="true">·</span>
-                                            <span className="text-orange-600 font-semibold inline-flex items-center gap-1">
-                                              <AlertTriangle className="w-3 h-3 text-orange-500" />
-                                              Com atraso
-                                            </span>
-                                          </>
+                                          <span className="text-orange-600 font-semibold">
+                                            · Atrasado
+                                          </span>
                                         )}
                                       </div>
                                     </div>
@@ -3709,9 +3676,9 @@ export default function App() {
 
                                   <button
                                     onClick={() => handleDeleteHistoryLog(log)}
-                                    title="Remover registro"
+                                    title="Remover"
                                     aria-label="Remover registro do histórico"
-                                    className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors shrink-0"
+                                    className="min-h-[34px] min-w-[34px] flex items-center justify-center rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors shrink-0"
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </button>
@@ -3735,26 +3702,17 @@ export default function App() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
                     transition={{ duration: 0.16 }}
-                    className="space-y-5"
+                    className="space-y-4"
                   >
-                    <section className="p-5 rounded-3xl bg-white border border-sky-100 space-y-3.5">
-                      <div>
-                        <h1 className="text-base font-bold text-slate-900">
-                          Biblioteca Terapêutica e Indicações
-                        </h1>
-                        <p className="text-xs text-slate-500">
-                          Consulte por sintoma ou categoria clínica, edite ou exclua medicamentos
-                        </p>
-                      </div>
-
+                    <section className="p-4 rounded-3xl bg-white border border-sky-100 space-y-3">
                       <div className="relative">
                         <Search className="w-4 h-4 text-sky-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
                         <input
                           type="text"
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          placeholder="Buscar por sintoma, nome ou categoria..."
-                          className="w-full min-h-[44px] pl-10 pr-9 py-2 rounded-2xl bg-sky-50/40 border border-sky-200/80 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-teal-600"
+                          placeholder="Buscar medicamento, princípio ativo ou sintoma..."
+                          className="w-full min-h-[42px] pl-10 pr-9 py-2 rounded-2xl bg-sky-50/40 border border-sky-200/80 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-teal-600"
                         />
                         {searchQuery && (
                           <button
@@ -3767,10 +3725,10 @@ export default function App() {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
+                      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                         <button
                           onClick={() => setSelectedCategory('Todos')}
-                          className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                          className={`min-h-[34px] px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
                             selectedCategory === 'Todos'
                               ? 'bg-slate-900 text-white'
                               : 'bg-sky-50/80 text-sky-900 hover:bg-sky-100'
@@ -3786,7 +3744,7 @@ export default function App() {
                               key={cat.name}
                               onClick={() => setSelectedCategory(cat.name)}
                               style={!isSelected ? catTheme.badgeStyle : undefined}
-                              className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors inline-flex items-center gap-1.5 ${
+                              className={`min-h-[34px] px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors inline-flex items-center gap-1.5 ${
                                 isSelected
                                   ? 'bg-slate-900 text-white'
                                   : 'hover:opacity-90 border'
@@ -3803,57 +3761,31 @@ export default function App() {
                       </div>
                     </section>
 
-                    {/* Painel de Interações Medicamentosas Detectadas na Biblioteca */}
+                    {/* Painel Compacto de Interações Detectadas na Biblioteca */}
                     {libraryWideInteractions.length > 0 && (
-                      <section className="p-4 rounded-3xl bg-amber-50/90 border border-amber-300/90 space-y-3">
-                        <div className="flex items-start gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
-                            <AlertTriangle className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <h2 className="text-xs sm:text-sm font-bold text-amber-950">
-                              Alerta de Interação Medicamentosa ({libraryWideInteractions.length}{' '}
-                              {libraryWideInteractions.length === 1
-                                ? 'identificada'
-                                : 'identificadas'}
-                              )
-                            </h2>
-                            <p className="text-xs text-amber-900">
-                              Identificamos medicamentos na sua lista que podem alterar a eficácia ou absorção um do outro:
-                            </p>
-                          </div>
+                      <section className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300/90 space-y-2">
+                        <div className="flex items-center gap-2 text-xs font-bold text-amber-950">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span>
+                            Interações identificadas ({libraryWideInteractions.length})
+                          </span>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                           {libraryWideInteractions.map((inter) => (
                             <div
                               key={inter.id}
-                              className="p-3 rounded-2xl bg-white border border-amber-200 space-y-1.5"
+                              className="p-2.5 rounded-xl bg-white border border-amber-200 text-xs space-y-1"
                             >
-                              <div className="flex items-center justify-between flex-wrap gap-1.5">
-                                <span className="text-xs font-bold text-slate-900">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-bold text-slate-900">
                                   {inter.newMedName} ↔ {inter.existingMedName}
                                 </span>
-                                <span
-                                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
-                                    inter.severity === 'alta'
-                                      ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                      : inter.severity === 'horario'
-                                      ? 'bg-sky-100 text-sky-900 border border-sky-200'
-                                      : 'bg-amber-100 text-amber-900 border border-amber-200'
-                                  }`}
-                                >
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-900">
                                   {inter.severityLabel}
                                 </span>
                               </div>
-                              <p className="text-xs text-slate-700">
-                                <strong className="text-slate-900">Efeito na eficácia: </strong>
-                                {inter.efficacyImpact}
-                              </p>
-                              <p className="text-xs text-teal-900 bg-teal-50/80 px-2.5 py-1.5 rounded-xl border border-teal-200/70">
-                                <strong>Orientação: </strong>
-                                {inter.recommendation}
-                              </p>
+                              <p className="text-slate-600">{inter.recommendation}</p>
                             </div>
                           ))}
                         </div>
@@ -3862,12 +3794,9 @@ export default function App() {
 
                     {filteredLibraryMedications.length === 0 ? (
                       <div className="p-8 rounded-3xl bg-white border border-sky-100 text-center space-y-2">
-                        <BookOpen className="w-7 h-7 text-slate-400 mx-auto" />
+                        <BookOpen className="w-6 h-6 text-slate-400 mx-auto" />
                         <p className="text-sm font-semibold text-slate-800">
                           Nenhum medicamento encontrado
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Utilize a aba Cadastrar (+) para adicionar medicamentos à sua biblioteca.
                         </p>
                       </div>
                     ) : (
@@ -3875,82 +3804,50 @@ export default function App() {
                         {filteredLibraryMedications.map((med) => {
                           const daysLeft = getDaysUntilExpiry(med.expiryDate);
                           const isExpired = daysLeft < 0;
-                          const isExpiringSoon = daysLeft >= 0 && daysLeft <= 30;
                           const isLowStock = med.currentStock <= med.minStockAlert;
                           const catTheme = getCategoryTheme(med.category);
                           const savedBula = savedBulas[med.id];
-                          const medInteractions = analyzeDrugInteractions(
-                            {
-                              id: med.id,
-                              name: med.name,
-                              activeIngredient: med.activeIngredient,
-                              interactingSubstances: savedBula?.interactingSubstances
-                            },
-                            medications
-                          );
 
                           return (
                             <div
                               key={med.id}
                               style={catTheme.cardStyle}
-                              className="p-4 rounded-2xl border space-y-3 transition-colors relative"
+                              className="p-4 rounded-2xl border space-y-2.5 transition-colors relative"
                             >
                               <div className="flex items-start justify-between gap-3">
-                                <div className="space-y-1 min-w-0">
-                                  <div className="flex items-center flex-wrap gap-1.5 text-xs font-medium">
+                                <div className="min-w-0 space-y-0.5">
+                                  <div className="flex items-center flex-wrap gap-1.5 text-xs">
                                     <span
                                       style={catTheme.badgeStyle}
-                                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg font-semibold border text-xs"
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold border text-[11px]"
                                     >
                                       <span
                                         style={catTheme.swatchStyle}
-                                        className="w-2 h-2 rounded-full"
+                                        className="w-1.5 h-1.5 rounded-full"
                                       />
                                       {med.category}
                                     </span>
-                                    <span aria-hidden="true" className="text-slate-400">
-                                      ·
-                                    </span>
-                                    <span className="text-slate-600">
+                                    <span className="text-slate-500 text-[11px]">
                                       {med.formType}
                                     </span>
                                     {savedBula && (
-                                      <>
-                                        <span aria-hidden="true" className="text-slate-400">
-                                          ·
-                                        </span>
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 border border-teal-200 text-[11px] font-semibold">
-                                          <FileText className="w-3 h-3 text-teal-600" />
-                                          Bula Salva
-                                        </span>
-                                      </>
-                                    )}
-                                    {med.controlled !== 'Venda Livre / Simples' && (
-                                      <>
-                                        <span aria-hidden="true" className="text-slate-400">
-                                          ·
-                                        </span>
-                                        <span className="text-sky-900 font-semibold">
-                                          Receita Retida
-                                        </span>
-                                      </>
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200 text-[10px] font-semibold">
+                                        Bula
+                                      </span>
                                     )}
                                   </div>
 
-                                  <h3 className="text-base font-bold text-slate-900">
+                                  <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate pt-0.5">
                                     {med.name}
                                   </h3>
-                                  <p className="text-xs text-slate-600">
-                                    {med.activeIngredient}
-                                    {med.isActiveTreatment && med.treatmentStartDate
-                                      ? ` · Início: ${med.treatmentStartDate.split('T')[0].split('-').reverse().join('/')}${med.treatmentStartDate.includes('T') ? ` às ${med.treatmentStartDate.split('T')[1]}` : ''}`
-                                      : ''}
+                                  <p className="text-xs text-slate-600 truncate">
+                                    {med.activeIngredient} · {med.purpose}
                                   </p>
                                 </div>
 
                                 <div className="text-right shrink-0">
                                   <span
-                                    className={`font-mono-tabular text-sm font-bold block ${
+                                    className={`font-mono-tabular text-xs sm:text-sm font-bold block ${
                                       isExpired
                                         ? 'text-rose-600'
                                         : isLowStock
@@ -3960,59 +3857,13 @@ export default function App() {
                                   >
                                     {med.currentStock} {med.unitLabel}
                                   </span>
-                                  <span className="text-[11px] text-slate-600 font-mono-tabular">
-                                    Último: {formatCurrencyBRL(med.lastPaidPrice)}
+                                  <span className="text-[11px] text-slate-500 font-mono-tabular">
+                                    1 cx: {med.boxCapacity}
                                   </span>
                                 </div>
                               </div>
 
-                              {(isLowStock || isExpiringSoon) && !isExpired && (
-                                <div className="px-3 py-2 rounded-xl bg-orange-50 border border-orange-200/80 text-orange-800 text-xs font-medium flex items-center gap-2">
-                                  <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0" />
-                                  <span>
-                                    Atenção:{' '}
-                                    {isLowStock &&
-                                      `Estoque baixo (${med.currentStock} un.) `}
-                                    {isExpiringSoon && `Vence em ${daysLeft} dias`}
-                                  </span>
-                                </div>
-                              )}
-
-                              {medInteractions.length > 0 && (
-                                <div className="p-2.5 rounded-xl bg-amber-50/95 border border-amber-200 text-xs text-amber-950 space-y-1">
-                                  <div className="flex items-center gap-1.5 font-bold text-amber-900">
-                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                                    <span>
-                                      Interação com {medInteractions.map((i) => i.existingMedName).join(', ')}
-                                    </span>
-                                  </div>
-                                  <p className="text-[11px] text-slate-700">
-                                    {medInteractions[0].efficacyImpact}{' '}
-                                    <strong className="text-teal-900">
-                                      {medInteractions[0].recommendation}
-                                    </strong>
-                                  </p>
-                                </div>
-                              )}
-
-                              <div className="text-xs text-slate-700 bg-white/85 p-3 rounded-xl border border-white space-y-1.5">
-                                <p>
-                                  <strong className="text-slate-900">
-                                    Indicação:{' '}
-                                  </strong>
-                                  {med.purpose}
-                                </p>
-                                {savedBula?.bestTimeGuidance && (
-                                  <p className="text-[11px] text-teal-900 pt-1 border-t border-sky-100/80">
-                                    <strong className="inline-flex items-center gap-1 text-teal-800">
-                                      <Clock className="w-3 h-3 inline" /> Melhor horário & como tomar:{' '}
-                                    </strong>
-                                    {savedBula.bestTimeGuidance}
-                                  </p>
-                                )}
-                              </div>
-
-                              <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
+                              <div className="flex items-center justify-between flex-wrap gap-1.5 pt-1 border-t border-black/5">
                                 <div className="flex items-center flex-wrap gap-1.5">
                                   <button
                                     type="button"
@@ -4025,73 +3876,51 @@ export default function App() {
                                         handleDownloadBulaForLibraryMed(med, true);
                                       }
                                     }}
-                                    className="min-h-[36px] px-3 py-1.5 rounded-xl bg-sky-900 text-white hover:bg-slate-800 text-xs font-semibold transition-colors inline-flex items-center gap-1.5 shadow-2xs disabled:opacity-60"
+                                    className="min-h-[34px] px-2.5 py-1 rounded-xl bg-sky-900 text-white hover:bg-slate-800 text-xs font-semibold transition-colors inline-flex items-center gap-1 disabled:opacity-60"
                                   >
                                     {downloadingBulaMedId === med.id ? (
-                                      <>
-                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                        <span>Baixando Bula...</span>
-                                      </>
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                     ) : (
-                                      <>
-                                        <FileText className="w-3.5 h-3.5" />
-                                        <span>
-                                          {savedBula
-                                            ? 'Ler Bula & Orientações'
-                                            : 'Baixar Bula na Biblioteca'}
-                                        </span>
-                                      </>
+                                      <FileText className="w-3.5 h-3.5" />
                                     )}
+                                    <span>{savedBula ? 'Ler Bula' : 'Baixar Bula'}</span>
                                   </button>
 
                                   {savedBula && (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleExportBulaFile(savedBula)}
-                                        title="Baixar arquivo da bula (.TXT)"
-                                        className="min-h-[36px] px-2.5 py-1.5 rounded-xl bg-white/90 text-teal-800 hover:bg-white border border-teal-200/80 text-xs font-semibold transition-colors inline-flex items-center gap-1"
-                                      >
-                                        <Download className="w-3.5 h-3.5" />
-                                        <span className="hidden sm:inline">Baixar .TXT</span>
-                                      </button>
-
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleRemoveBulaForMedication(med)
-                                        }
-                                        title="Remover apenas a bula deste medicamento"
-                                        className="min-h-[36px] px-2.5 py-1.5 rounded-xl bg-rose-50/90 text-rose-700 hover:bg-rose-100 border border-rose-200 text-xs font-semibold transition-colors inline-flex items-center gap-1"
-                                      >
-                                        <X className="w-3.5 h-3.5" />
-                                        <span>Remover Bula</span>
-                                      </button>
-                                    </>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleRemoveBulaForMedication(med)
+                                      }
+                                      title="Remover Bula"
+                                      className="min-h-[34px] px-2.5 py-1 rounded-xl bg-rose-50/90 text-rose-700 hover:bg-rose-100 border border-rose-200 text-xs font-semibold transition-colors inline-flex items-center gap-1"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                      <span>Remover Bula</span>
+                                    </button>
                                   )}
 
                                   <button
                                     onClick={() => handleStartEditMedication(med)}
-                                    className="min-h-[36px] px-3 py-1.5 rounded-xl bg-white/90 text-sky-900 hover:bg-white border border-sky-200/70 text-xs font-semibold transition-colors inline-flex items-center gap-1.5"
+                                    className="min-h-[34px] px-2.5 py-1 rounded-xl bg-white/90 text-sky-900 hover:bg-white border border-sky-200/70 text-xs font-semibold inline-flex items-center gap-1"
                                   >
                                     <Edit3 className="w-3.5 h-3.5" />
                                     <span>Editar</span>
                                   </button>
                                   <button
                                     onClick={() => setMedToDelete(med)}
-                                    className="min-h-[36px] px-3 py-1.5 rounded-xl bg-white/90 text-rose-700 hover:bg-rose-50 border border-rose-200/70 text-xs font-semibold transition-colors inline-flex items-center gap-1.5"
+                                    className="min-h-[34px] px-2.5 py-1 rounded-xl bg-white/90 text-rose-700 hover:bg-rose-50 border border-rose-200/70 text-xs font-semibold inline-flex items-center gap-1"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
-                                    <span>Excluir</span>
                                   </button>
                                 </div>
 
                                 {!isExpired && med.currentStock >= med.doseAmount && (
                                   <button
                                     onClick={() => handleTakeSingleDoseNow(med)}
-                                    className="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-teal-600 text-white hover:bg-teal-700 text-xs font-semibold transition-colors shrink-0"
+                                    className="min-h-[34px] px-3 py-1 rounded-xl bg-teal-600 text-white hover:bg-teal-700 text-xs font-semibold transition-colors shrink-0"
                                   >
-                                    Registrar Dose
+                                    Tomar
                                   </button>
                                 )}
                               </div>
@@ -4113,24 +3942,24 @@ export default function App() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
                     transition={{ duration: 0.16 }}
-                    className="space-y-5"
+                    className="space-y-4"
                   >
                     <div className="p-1.5 rounded-2xl bg-white border border-sky-100 grid grid-cols-2 gap-1.5">
                       <button
                         onClick={() => setStockSubTab('inventario')}
-                        className={`min-h-[42px] py-2 px-3 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 ${
+                        className={`min-h-[40px] py-2 px-3 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 ${
                           stockSubTab === 'inventario'
                             ? 'bg-sky-600 text-white'
                             : 'text-slate-600 hover:bg-sky-50'
                         }`}
                       >
                         <Package className="w-4 h-4" />
-                        <span>Posição de Estoque</span>
+                        <span>Estoque</span>
                       </button>
 
                       <button
                         onClick={() => setStockSubTab('compras')}
-                        className={`min-h-[42px] py-2 px-3 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 ${
+                        className={`min-h-[40px] py-2 px-3 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 ${
                           stockSubTab === 'compras'
                             ? 'bg-teal-600 text-white'
                             : 'text-slate-600 hover:bg-emerald-50/60'
@@ -4138,66 +3967,50 @@ export default function App() {
                       >
                         <ShoppingCart className="w-4 h-4" />
                         <span>
-                          Lista de Compras ({stockAlerts.shoppingList.length})
+                          Compras ({stockAlerts.shoppingList.length})
                         </span>
                       </button>
                     </div>
 
                     {stockSubTab === 'compras' ? (
-                      <div className="space-y-4">
-                        <section className="p-5 rounded-3xl bg-white border border-teal-200/80 space-y-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <span className="text-xs font-semibold text-teal-700">
-                                Reposição Automática
-                              </span>
-                              <h2 className="text-base font-bold text-slate-900 mt-0.5">
-                                Lista de Compras para a Farmácia
-                              </h2>
-                              <p className="text-xs text-slate-500 mt-0.5">
-                                Medicamentos de uso contínuo com estoque baixo ou vencidos, com o último preço pago para comparar na farmácia.
-                              </p>
-                            </div>
-
-                            <div className="text-right shrink-0 bg-emerald-50/80 px-3.5 py-2.5 rounded-2xl border border-emerald-200/70">
-                              <span className="text-[11px] text-teal-800 block">
-                                Total Estimado
-                              </span>
-                              <span className="font-mono-tabular text-base font-bold text-teal-950">
-                                {formatCurrencyBRL(stockAlerts.shoppingTotalEstimated)}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between pt-2 border-t border-sky-100 text-xs">
-                            <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
+                      <div className="space-y-3.5">
+                        <section className="p-4 rounded-3xl bg-white border border-teal-200/80 flex items-center justify-between gap-3 flex-wrap">
+                          <div>
+                            <h2 className="text-sm font-bold text-slate-900">
+                              Lista de Compras
+                            </h2>
+                            <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer mt-1">
                               <input
                                 type="checkbox"
                                 checked={showAllInShoppingList}
                                 onChange={(e) =>
                                   setShowAllInShoppingList(e.target.checked)
                                 }
-                                className="w-4 h-4 rounded accent-teal-600"
+                                className="w-3.5 h-3.5 rounded accent-teal-600"
                               />
-                              <span>
-                                Incluir também medicamentos de uso esporádico
-                              </span>
+                              <span>Incluir uso esporádico</span>
                             </label>
+                          </div>
+
+                          <div className="text-right bg-emerald-50/80 px-3 py-2 rounded-2xl border border-emerald-200/70">
+                            <span className="text-[10px] text-teal-800 block">
+                              Total Estimado
+                            </span>
+                            <span className="font-mono-tabular text-sm font-bold text-teal-950">
+                              {formatCurrencyBRL(stockAlerts.shoppingTotalEstimated)}
+                            </span>
                           </div>
                         </section>
 
                         {stockAlerts.shoppingList.length === 0 ? (
-                          <div className="p-8 rounded-3xl bg-white border border-sky-100 text-center space-y-2">
-                            <CheckCircle2 className="w-8 h-8 text-teal-600 mx-auto" />
+                          <div className="p-8 rounded-3xl bg-white border border-sky-100 text-center space-y-1.5">
+                            <CheckCircle2 className="w-7 h-7 text-teal-600 mx-auto" />
                             <p className="text-sm font-bold text-slate-800">
-                              Nenhum medicamento pendente de compra
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              Quando um medicamento de uso contínuo atingir estoque baixo ou vencer, ele será listado automaticamente aqui.
+                              Estoque em dia
                             </p>
                           </div>
                         ) : (
-                          <div className="space-y-3">
+                          <div className="space-y-2.5">
                             {stockAlerts.shoppingList.map(
                               ({ medication, isExpired, reason }) => {
                                 const catTheme = getCategoryTheme(
@@ -4206,100 +4019,51 @@ export default function App() {
                                 return (
                                   <div
                                     key={medication.id}
-                                    className={`p-4 rounded-2xl ${catTheme.cardBgClass} border border-orange-200/90 ${catTheme.accentStripClass} space-y-3`}
+                                    className={`p-4 rounded-2xl ${catTheme.cardBgClass} border border-orange-200/90 ${catTheme.accentStripClass} space-y-2.5`}
                                   >
                                     <div className="flex items-start justify-between gap-3">
-                                      <div className="space-y-1 min-w-0">
-                                        <div className="flex items-center flex-wrap gap-1.5 text-xs">
-                                          <span
-                                            className={`font-semibold inline-flex items-center gap-1 ${
-                                              isExpired
-                                                ? 'text-rose-600'
-                                                : 'text-orange-600'
-                                            }`}
-                                          >
-                                            <AlertTriangle className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                                            {reason}
-                                          </span>
-                                          {medication.controlled !==
-                                            'Venda Livre / Simples' && (
-                                            <>
-                                              <span aria-hidden="true">·</span>
-                                              <span className="text-sky-800 font-semibold">
-                                                Levar Receita Retida
-                                              </span>
-                                            </>
-                                          )}
-                                        </div>
-
-                                        <h3 className="text-base font-bold text-slate-900">
+                                      <div className="min-w-0">
+                                        <span
+                                          className={`text-xs font-semibold inline-flex items-center gap-1 ${
+                                            isExpired
+                                              ? 'text-rose-600'
+                                              : 'text-orange-600'
+                                          }`}
+                                        >
+                                          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                                          {reason}
+                                        </span>
+                                        <h3 className="text-sm font-bold text-slate-900 mt-0.5">
                                           {medication.name}
                                         </h3>
-                                        <div className="flex items-center flex-wrap gap-1.5 text-xs text-slate-600">
-                                          <span>
-                                            Caixa padrão: {medication.boxCapacity}{' '}
-                                            {medication.unitLabel}
-                                          </span>
-                                          <span aria-hidden="true">·</span>
-                                          <span
-                                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold text-[11px] ${catTheme.badgeBgClass} ${catTheme.badgeTextClass}`}
-                                          >
-                                            <span
-                                              className={`w-1.5 h-1.5 rounded-full ${catTheme.swatchClass}`}
-                                            />
-                                            {medication.category}
-                                          </span>
-                                        </div>
+                                        <p className="text-xs text-slate-600">
+                                          1 cx: {medication.boxCapacity} {medication.unitLabel}
+                                        </p>
                                       </div>
 
-                                      <div className="text-right shrink-0 bg-white/90 px-3 py-2 rounded-xl border border-sky-100">
-                                        <span className="text-[10px] text-slate-500 block">
-                                          Último preço pago
-                                        </span>
-                                        <span className="font-mono-tabular text-sm font-bold text-sky-950">
+                                      <div className="text-right shrink-0">
+                                        <span className="font-mono-tabular text-xs font-bold text-sky-950 block">
                                           {formatCurrencyBRL(medication.lastPaidPrice)}
                                         </span>
-                                      </div>
-                                    </div>
-
-                                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-sky-100/70">
-                                      <div className="flex items-center gap-1.5">
                                         <button
-                                          onClick={() =>
-                                            handleStartEditMedication(medication)
-                                          }
-                                          className="min-h-[36px] px-2.5 py-1 rounded-xl bg-white/90 text-sky-900 hover:bg-white border border-sky-200/70 text-xs font-medium inline-flex items-center gap-1"
+                                          onClick={() => {
+                                            setRestockModalMed(medication);
+                                            setRestockPriceInput(
+                                              medication.lastPaidPrice.toFixed(2)
+                                            );
+                                            setRestockQuantityInput(
+                                              medication.boxCapacity
+                                            );
+                                            setRestockExpiryInput(
+                                              getOffsetDateISO(365)
+                                            );
+                                          }}
+                                          className="mt-1.5 min-h-[34px] px-3 py-1 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold transition-colors inline-flex items-center gap-1"
                                         >
-                                          <Edit3 className="w-3.5 h-3.5" />
-                                          <span>Editar</span>
-                                        </button>
-                                        <button
-                                          onClick={() => setMedToDelete(medication)}
-                                          className="min-h-[36px] px-2.5 py-1 rounded-xl bg-white/90 text-rose-700 hover:bg-rose-50 border border-rose-200/70 text-xs font-medium inline-flex items-center gap-1"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                          <span>Excluir</span>
+                                          <Check className="w-3.5 h-3.5" />
+                                          <span>Repor</span>
                                         </button>
                                       </div>
-
-                                      <button
-                                        onClick={() => {
-                                          setRestockModalMed(medication);
-                                          setRestockPriceInput(
-                                            medication.lastPaidPrice.toFixed(2)
-                                          );
-                                          setRestockQuantityInput(
-                                            medication.boxCapacity
-                                          );
-                                          setRestockExpiryInput(
-                                            getOffsetDateISO(365)
-                                          );
-                                        }}
-                                        className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shrink-0"
-                                      >
-                                        <Check className="w-3.5 h-3.5" />
-                                        <span>Confirmar Compra</span>
-                                      </button>
                                     </div>
                                   </div>
                                 );
@@ -4309,69 +4073,13 @@ export default function App() {
                         )}
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
-                          <button
-                            onClick={() =>
-                              setStockFilter(
-                                stockFilter === 'vencendo' ? 'todos' : 'vencendo'
-                              )
-                            }
-                            className={`p-4 rounded-2xl border text-left transition-colors ${
-                              stockFilter === 'vencendo'
-                                ? 'bg-orange-50 border-orange-300'
-                                : 'bg-white border-sky-100'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-medium text-slate-600">
-                                Validade em Atenção
-                              </span>
-                              <AlertTriangle className="w-4 h-4 text-orange-500" />
-                            </div>
-                            <span className="font-mono-tabular text-xl font-bold text-slate-900 mt-1 block">
-                              {stockAlerts.expiringSoon.length +
-                                stockAlerts.expired.length}
-                            </span>
-                            <span className="text-[11px] text-orange-700 font-medium mt-0.5 block">
-                              {stockAlerts.expiringSoon.length} &lt;30d ·{' '}
-                              {stockAlerts.expired.length} vencido(s)
-                            </span>
-                          </button>
-
-                          <button
-                            onClick={() =>
-                              setStockFilter(
-                                stockFilter === 'acabando' ? 'todos' : 'acabando'
-                              )
-                            }
-                            className={`p-4 rounded-2xl border text-left transition-colors ${
-                              stockFilter === 'acabando'
-                                ? 'bg-orange-50 border-orange-300'
-                                : 'bg-white border-sky-100'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-medium text-slate-600">
-                                Estoque Baixo
-                              </span>
-                              <AlertTriangle className="w-4 h-4 text-orange-500" />
-                            </div>
-                            <span className="font-mono-tabular text-xl font-bold text-slate-900 mt-1 block">
-                              {stockAlerts.lowStock.length}
-                            </span>
-                            <span className="text-[11px] text-orange-700 font-medium mt-0.5 block">
-                              Abaixo do mínimo configurado
-                            </span>
-                          </button>
-                        </div>
-
+                      <div className="space-y-3.5">
                         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                           {[
-                            { id: 'todos', label: 'Todos' },
-                            { id: 'acabando', label: 'Estoque Baixo' },
-                            { id: 'vencendo', label: 'Vencendo (<30d)' },
-                            { id: 'vencidos', label: 'Vencidos' }
+                            { id: 'todos', label: `Todos (${medications.length})` },
+                            { id: 'acabando', label: `Estoque Baixo (${stockAlerts.lowStock.length})` },
+                            { id: 'vencendo', label: `Vencendo (${stockAlerts.expiringSoon.length})` },
+                            { id: 'vencidos', label: `Vencidos (${stockAlerts.expired.length})` }
                           ].map((f) => (
                             <button
                               key={f.id}
@@ -4384,7 +4092,7 @@ export default function App() {
                                     | 'vencidos'
                                 )
                               }
-                              className={`min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                              className={`min-h-[34px] px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
                                 stockFilter === f.id
                                   ? 'bg-sky-700 text-white'
                                   : 'bg-white text-slate-600 border border-sky-100 hover:bg-sky-50'
@@ -4396,14 +4104,13 @@ export default function App() {
                         </div>
 
                         {filteredStockMedications.length === 0 ? (
-                          <div className="p-8 rounded-3xl bg-white border border-sky-100 text-center space-y-2">
-                            <Package className="w-7 h-7 text-slate-400 mx-auto" />
-                            <p className="text-sm font-semibold text-slate-800">
-                              Nenhum item nesta categoria de estoque
+                          <div className="p-8 rounded-3xl bg-white border border-sky-100 text-center">
+                            <p className="text-sm font-semibold text-slate-700">
+                              Nenhum item encontrado
                             </p>
                           </div>
                         ) : (
-                          <div className="space-y-3">
+                          <div className="space-y-2.5">
                             {filteredStockMedications.map((med) => {
                               const daysLeft = getDaysUntilExpiry(med.expiryDate);
                               const isExpired = daysLeft < 0;
@@ -4431,7 +4138,7 @@ export default function App() {
                               return (
                                 <div
                                   key={med.id}
-                                  className={`p-4 rounded-2xl ${catTheme.cardBgClass} border ${catTheme.accentStripClass} space-y-3 ${
+                                  className={`p-3.5 rounded-2xl ${catTheme.cardBgClass} border ${catTheme.accentStripClass} space-y-2.5 ${
                                     isLowStock || isExpiringSoon
                                       ? 'border-orange-200'
                                       : isExpired
@@ -4441,50 +4148,11 @@ export default function App() {
                                 >
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
-                                      <div className="flex items-center flex-wrap gap-1.5 text-xs">
-                                        <span
-                                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold text-[11px] ${catTheme.badgeBgClass} ${catTheme.badgeTextClass}`}
-                                        >
-                                          <span
-                                            className={`w-1.5 h-1.5 rounded-full ${catTheme.swatchClass}`}
-                                          />
-                                          {med.category}
-                                        </span>
-                                        <span aria-hidden="true">·</span>
-                                        {isExpired ? (
-                                          <span className="font-semibold text-rose-600 inline-flex items-center gap-1">
-                                            <AlertCircle className="w-3.5 h-3.5" />
-                                            Vencido (
-                                            {formatExpiryMMYYYY(med.expiryDate)})
-                                          </span>
-                                        ) : isExpiringSoon ? (
-                                          <span className="font-semibold text-orange-600 inline-flex items-center gap-1">
-                                            <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
-                                            Atenção: Vence em {daysLeft} dias
-                                          </span>
-                                        ) : (
-                                          <span className="font-medium text-teal-800">
-                                            Validade regular (
-                                            {formatExpiryMMYYYY(med.expiryDate)})
-                                          </span>
-                                        )}
-                                        {isLowStock && !isExpired && (
-                                          <>
-                                            <span aria-hidden="true">·</span>
-                                            <span className="font-semibold text-orange-600 inline-flex items-center gap-1">
-                                              <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
-                                              Estoque baixo
-                                            </span>
-                                          </>
-                                        )}
-                                      </div>
-
-                                      <h3 className="text-sm font-bold text-slate-900 mt-1">
+                                      <h3 className="text-sm font-bold text-slate-900 truncate">
                                         {med.name}
                                       </h3>
-                                      <p className="text-xs text-slate-600 font-mono-tabular">
-                                        Último preço:{' '}
-                                        {formatCurrencyBRL(med.lastPaidPrice)}
+                                      <p className="text-[11px] text-slate-600 font-mono-tabular">
+                                        Val: {formatExpiryMMYYYY(med.expiryDate)} · {formatCurrencyBRL(med.lastPaidPrice)}
                                       </p>
                                     </div>
 
@@ -4497,16 +4165,13 @@ export default function App() {
                                             Math.max(1, med.boxCapacity)
                                           )
                                         }
-                                        title={`Adicionar +1 caixa (+${med.boxCapacity} ${med.unitLabel})`}
-                                        className="min-h-[34px] px-2.5 py-1 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 font-mono-tabular font-bold text-[11px] flex items-center gap-1"
+                                        title={`Adicionar +1 caixa (+${med.boxCapacity})`}
+                                        className="min-h-[32px] px-2 py-1 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 font-mono-tabular font-bold text-[11px]"
                                       >
-                                        <span>+1 cx</span>
-                                        <span className="text-[10px] opacity-80">
-                                          (+{med.boxCapacity})
-                                        </span>
+                                        +1 cx (+{med.boxCapacity})
                                       </button>
 
-                                      <div className="flex items-center gap-1 bg-white/90 p-1 rounded-xl border border-sky-100">
+                                      <div className="flex items-center gap-1 bg-white/90 p-0.5 rounded-xl border border-sky-100">
                                         <button
                                           onClick={() => handleAdjustStock(med, -1)}
                                           aria-label="Reduzir 1 unidade"
@@ -4514,7 +4179,7 @@ export default function App() {
                                         >
                                           -
                                         </button>
-                                        <span className="font-mono-tabular text-xs font-bold px-2 text-slate-900">
+                                        <span className="font-mono-tabular text-xs font-bold px-1.5 text-slate-900">
                                           {med.currentStock}
                                         </span>
                                         <button
@@ -4528,49 +4193,46 @@ export default function App() {
                                     </div>
                                   </div>
 
-                                  <div className="space-y-1.5">
-                                    <div className="flex items-center justify-between text-xs text-slate-600 flex-wrap gap-1">
-                                      <span className="font-medium text-slate-700">
-                                        Quantidade Atual:{' '}
-                                        <strong className="font-mono-tabular text-slate-900">
-                                          {med.currentStock} {med.unitLabel}
-                                        </strong>
+                                  <div className="space-y-1">
+                                    <div className="flex items-center justify-between text-[11px] text-slate-600">
+                                      <span>
+                                        Atual: <strong className="font-mono-tabular text-slate-900">{med.currentStock} {med.unitLabel}</strong>
                                       </span>
-                                      <span className="font-mono-tabular text-[11px] font-semibold text-sky-900 bg-white/85 px-2 py-0.5 rounded-md border border-sky-200/70">
-                                        Capacidade de 1 cx: {med.boxCapacity}{' '}
-                                        {med.unitLabel}
+                                      <span className="font-mono-tabular text-sky-900">
+                                        1 cx: {med.boxCapacity} {med.unitLabel}
                                       </span>
                                     </div>
-                                    <div className="w-full h-2 bg-white/90 rounded-full overflow-hidden">
+                                    <div className="w-full h-1.5 bg-white/90 rounded-full overflow-hidden">
                                       <div
                                         className={`h-full rounded-full transition-all duration-300 ${barColor}`}
                                         style={{ width: `${stockPercent}%` }}
                                       />
                                     </div>
-                                    <p className="text-[11px] font-medium text-slate-600">
-                                      {formatBoxBreakdown(
-                                        med.currentStock,
-                                        med.boxCapacity,
-                                        med.unitLabel
-                                      )}
-                                    </p>
-                                  </div>
-
-                                  <div className="flex items-center justify-end gap-2 pt-1 border-t border-sky-100/70">
-                                    <button
-                                      onClick={() => handleStartEditMedication(med)}
-                                      className="min-h-[34px] px-3 py-1 rounded-xl bg-white/90 text-sky-900 hover:bg-white border border-sky-200/70 text-xs font-semibold inline-flex items-center gap-1.5"
-                                    >
-                                      <Edit3 className="w-3.5 h-3.5" />
-                                      <span>Editar</span>
-                                    </button>
-                                    <button
-                                      onClick={() => setMedToDelete(med)}
-                                      className="min-h-[34px] px-3 py-1 rounded-xl bg-white/90 text-rose-700 hover:bg-rose-50 border border-rose-200/70 text-xs font-semibold inline-flex items-center gap-1.5"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                      <span>Excluir</span>
-                                    </button>
+                                    <div className="flex items-center justify-between pt-0.5">
+                                      <span className="text-[11px] text-slate-500">
+                                        {formatBoxBreakdown(
+                                          med.currentStock,
+                                          med.boxCapacity,
+                                          med.unitLabel
+                                        )}
+                                      </span>
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          onClick={() => handleStartEditMedication(med)}
+                                          className="p-1 text-sky-800 hover:text-sky-950"
+                                          title="Editar"
+                                        >
+                                          <Edit3 className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          onClick={() => setMedToDelete(med)}
+                                          className="p-1 text-rose-600 hover:text-rose-800"
+                                          title="Excluir"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
                               );
@@ -4593,12 +4255,12 @@ export default function App() {
                     exit={{ opacity: 0, y: -6 }}
                     transition={{ duration: 0.16 }}
                     onSubmit={handleSaveMedication}
-                    className="space-y-5"
+                    className="space-y-4"
                   >
-                    <section className="p-5 rounded-3xl bg-white border border-sky-100 space-y-4">
+                    <section className="p-4 sm:p-5 rounded-3xl bg-white border border-sky-100 space-y-3.5">
                       <div className="flex items-center justify-between gap-2">
                         <h2 className="text-sm font-bold text-slate-900">
-                          1. Identificação Clínica e Categoria
+                          1. Medicamento
                         </h2>
                         <div className="flex items-center gap-3">
                           <button
@@ -4607,7 +4269,7 @@ export default function App() {
                             className="text-xs font-semibold text-teal-700 hover:text-teal-800 inline-flex items-center gap-1"
                           >
                             <SlidersHorizontal className="w-3.5 h-3.5" />
-                            <span>Gerenciar categorias e cores</span>
+                            <span>Categorias</span>
                           </button>
                           {editingMedId && (
                             <button
@@ -4615,24 +4277,18 @@ export default function App() {
                               onClick={resetForm}
                               className="text-xs font-medium text-slate-500 hover:text-slate-800"
                             >
-                              Cancelar edição
+                              Cancelar
                             </button>
                           )}
                         </div>
                       </div>
 
-                      <div className="space-y-3.5">
-                        {/* Barra de Pesquisa de Nomes Verdadeiros (Base ANVISA + Bulário Digital) */}
+                      <div className="space-y-3">
+                        {/* Barra de Pesquisa de Nomes Verdadeiros (Base ANVISA + openFDA + RxNav) */}
                         <div className="relative">
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <label className="block text-xs font-semibold text-slate-700">
-                              Buscar Medicamento (Nome Comercial ou Genérico + Dosagem) *
-                            </label>
-                            <span className="text-[11px] font-semibold text-teal-700 inline-flex items-center gap-1">
-                              <Sparkles className="w-3 h-3" />
-                              Sugestões ANVISA ao digitar
-                            </span>
-                          </div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            Nome do Medicamento e Dosagem *
+                          </label>
 
                           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                             <div className="relative flex-1">
@@ -4646,7 +4302,7 @@ export default function App() {
                                   setFormName(e.target.value);
                                   setIsAutocompleteOpen(true);
                                 }}
-                                placeholder="Digite ex: Losartana, Dipirona, Puran, Omeprazol, Clavulin..."
+                                placeholder="Buscar ex: Losartana, Dipirona, Neosaldina, Torsilax, Amoxicilina..."
                                 className="w-full min-h-[44px] pl-10 pr-9 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm text-slate-800 focus:outline-none focus:bg-white focus:border-teal-600 font-medium"
                               />
                               {formName && (
@@ -4681,31 +4337,31 @@ export default function App() {
                               {isDownloadingBula ? (
                                 <>
                                   <Loader2 className="w-4 h-4 animate-spin" />
-                                  <span>Baixando Bula...</span>
+                                  <span>Buscando...</span>
                                 </>
                               ) : (
                                 <>
                                   <FileText className="w-4 h-4" />
-                                  <span>Baixar Bula & Analisar</span>
+                                  <span>Buscar Bula</span>
                                 </>
                               )}
                             </button>
                           </div>
 
-                          {/* Dropdown de Sugestões de Medicamentos Verdadeiros */}
+                          {/* Dropdown de Sugestões de Medicamentos */}
                           {isAutocompleteOpen && (
                             <div className="mt-1.5 rounded-2xl bg-white border border-sky-200 shadow-lg overflow-hidden z-30">
                               <div className="px-3.5 py-2 bg-sky-50/80 border-b border-sky-100 flex items-center justify-between text-[11px] text-sky-950 font-semibold">
                                 <span>
                                   {formName.trim().length < 2
-                                    ? 'Medicamentos mais prescritos (clique para preencher automaticamente e baixar a bula):'
-                                    : `Sugestões encontradas para "${formName}" (clique para pré-preencher):`}
+                                    ? 'Sugestões rápidas'
+                                    : `${combinedAutocompleteSuggestions.length} medicamentos encontrados`}
                                 </span>
                                 <div className="flex items-center gap-2">
                                   {isSearchingRemoteCatalog && (
                                     <span className="inline-flex items-center gap-1 text-teal-700">
                                       <Loader2 className="w-3 h-3 animate-spin" />
-                                      Buscando na API...
+                                      API...
                                     </span>
                                   )}
                                   <button
@@ -4719,10 +4375,8 @@ export default function App() {
                               </div>
 
                               {combinedAutocompleteSuggestions.length === 0 ? (
-                                <div className="p-3.5 text-xs text-slate-600 flex items-center justify-between gap-2">
-                                  <span>
-                                    Nenhuma sugestão local imediata para &ldquo;{formName}&rdquo;. Clique em <strong>Baixar Bula & Analisar</strong> para consultar via API Farmacêutica.
-                                  </span>
+                                <div className="p-3 text-xs text-slate-600">
+                                  Clique em <strong>Buscar Bula</strong> para consultar &ldquo;{formName}&rdquo; na base openFDA/ANVISA.
                                 </div>
                               ) : (
                                 <div className="max-h-64 overflow-y-auto divide-y divide-sky-50">
@@ -4731,36 +4385,28 @@ export default function App() {
                                       key={item.id}
                                       type="button"
                                       onClick={() => handleSelectAnvisaSuggestion(item)}
-                                      className="w-full text-left px-3.5 py-2.5 hover:bg-sky-50/80 transition-colors flex items-start justify-between gap-3"
+                                      className="w-full text-left px-3.5 py-2.5 hover:bg-sky-50/80 transition-colors flex items-center justify-between gap-3"
                                     >
-                                      <div className="min-w-0 space-y-0.5">
+                                      <div className="min-w-0">
                                         <div className="flex items-center flex-wrap gap-1.5">
                                           <span className="text-xs font-bold text-slate-900">
                                             {item.name}
                                           </span>
                                           {item.brandAliases.length > 0 && (
-                                            <span className="text-[11px] text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded-md border border-teal-200/60 font-medium">
-                                              Ref: {item.brandAliases.slice(0, 2).join(', ')}
+                                            <span className="text-[10px] text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200/60 font-medium">
+                                              {item.brandAliases.slice(0, 2).join(', ')}
                                             </span>
                                           )}
                                         </div>
-                                        <p className="text-[11px] text-slate-600 truncate">
-                                          <strong>Princípio ativo:</strong> {item.activeIngredient} · {item.formType} · {item.category}
-                                        </p>
-                                        <p className="text-[11px] text-slate-500 line-clamp-1">
-                                          {item.purpose}
+                                        <p className="text-[11px] text-slate-500 truncate">
+                                          {item.activeIngredient} · {item.formType} · {item.category}
                                         </p>
                                       </div>
 
-                                      <div className="text-right shrink-0 space-y-1">
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-100 text-sky-900 text-[10px] font-mono-tabular font-bold">
-                                          <Clock className="w-2.5 h-2.5" />
-                                          {item.recommendedTimes.join(', ')}
-                                        </span>
-                                        <span className="block text-[10px] font-semibold text-teal-700">
-                                          + Preencher & Bula
-                                        </span>
-                                      </div>
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-100 text-sky-900 text-[10px] font-mono-tabular font-bold shrink-0">
+                                        <Clock className="w-2.5 h-2.5" />
+                                        {item.recommendedTimes.join(', ')}
+                                      </span>
                                     </button>
                                   ))}
                                 </div>
@@ -4771,68 +4417,46 @@ export default function App() {
 
                         <div>
                           <label className="block text-xs font-semibold text-slate-700 mb-1">
-                            Princípio Ativo / Substância (usado para checar interações)
+                            Princípio Ativo
                           </label>
                           <input
                             type="text"
                             value={formActiveIngredient}
                             onChange={(e) => setFormActiveIngredient(e.target.value)}
-                            placeholder="Ex: Losartana Potássica, Dipirona Monoidratada, Levotiroxina..."
+                            placeholder="Ex: Losartana Potássica, Dipirona..."
                             className="w-full min-h-[42px] px-3.5 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-xs sm:text-sm text-slate-800 focus:outline-none focus:bg-white focus:border-teal-600"
                           />
                         </div>
 
-                        {/* ALERTA AUTOMÁTICO DE INTERAÇÃO COM OUTROS MEDICAMENTOS QUE O USUÁRIO JÁ TOMA */}
+                        {/* ALERTA AUTOMÁTICO DE INTERAÇÃO COM OUTROS MEDICAMENTOS */}
                         {currentFormInteractions.length > 0 && (
-                          <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 space-y-3 shadow-xs">
-                            <div className="flex items-start gap-2.5">
-                              <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
-                                <AlertTriangle className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <h3 className="text-xs sm:text-sm font-bold text-amber-950">
-                                  Atenção: Interação com medicamento que você já está tomando!
-                                </h3>
-                                <p className="text-xs text-amber-900 mt-0.5">
-                                  Verificamos sua lista ativa e encontramos {currentFormInteractions.length === 1 ? 'um medicamento que pode' : `${currentFormInteractions.length} medicamentos que podem`} ter a eficácia alterada ou causar efeitos adversos:
-                                </p>
-                              </div>
+                          <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 space-y-2.5">
+                            <div className="flex items-center gap-2">
+                              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                              <h3 className="text-xs font-bold text-amber-950">
+                                Interação com medicamento em uso ({currentFormInteractions.length})
+                              </h3>
                             </div>
 
-                            <div className="space-y-2.5">
+                            <div className="space-y-2">
                               {currentFormInteractions.map((alert) => (
                                 <div
                                   key={alert.id}
-                                  className="p-3 rounded-xl bg-white border border-amber-200 space-y-1.5"
+                                  className="p-2.5 rounded-xl bg-white border border-amber-200 space-y-1.5 text-xs"
                                 >
                                   <div className="flex items-center justify-between flex-wrap gap-1.5">
-                                    <span className="text-xs font-bold text-slate-900">
-                                      Conflito com: <span className="text-rose-700 underline">{alert.existingMedName}</span>
+                                    <span className="font-bold text-rose-700">
+                                      Conflito com {alert.existingMedName}
                                     </span>
-                                    <span
-                                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
-                                        alert.severity === 'alta'
-                                          ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                          : alert.severity === 'horario'
-                                          ? 'bg-sky-100 text-sky-900 border border-sky-200'
-                                          : 'bg-amber-100 text-amber-900 border border-amber-200'
-                                      }`}
-                                    >
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-900">
                                       {alert.severityLabel}
                                     </span>
                                   </div>
-
-                                  <p className="text-xs text-slate-700 leading-relaxed">
-                                    <strong className="text-slate-900">O que pode acontecer: </strong>
-                                    {alert.efficacyImpact}
-                                  </p>
-
-                                  <div className="p-2.5 rounded-lg bg-teal-50/90 border border-teal-200/80 text-xs text-teal-950 space-y-1.5">
-                                    <p>
-                                      <strong className="text-teal-900">Como fazer / Orientação: </strong>
-                                      {alert.recommendation}
-                                    </p>
-
+                                  <p className="text-slate-700">{alert.efficacyImpact}</p>
+                                  <div className="p-2 rounded-lg bg-teal-50/90 border border-teal-200/80 text-teal-950 flex items-center justify-between flex-wrap gap-2">
+                                    <span>
+                                      <strong>Orientação:</strong> {alert.recommendation}
+                                    </span>
                                     {alert.suggestedSpacingHours && (
                                       <button
                                         type="button"
@@ -4850,20 +4474,22 @@ export default function App() {
                                               (alert.suggestedSpacingHours || 4)) %
                                             24;
                                           const safeTime = `${String(safeHour).padStart(2, '0')}:${String(bm || 0).padStart(2, '0')}`;
-                                          setFormIsActiveTreatment(true);
-                                          setFormScheduleTimes([safeTime]);
-                                          setFormTreatmentStartTime(safeTime);
+                                          if (formIntervalHours && Number(formIntervalHours) > 0) {
+                                            applyIntervalSchedule(Number(formIntervalHours), safeTime);
+                                          } else {
+                                            setFormIsActiveTreatment(true);
+                                            setFormScheduleTimes([safeTime]);
+                                            setFormTreatmentStartTime(safeTime);
+                                          }
                                           showToast(
-                                            `Horário ajustado para ${safeTime} (${alert.suggestedSpacingHours}h após ${alert.existingMedName}) para proteger a eficácia!`,
+                                            `Horário ajustado para ${safeTime} (+${alert.suggestedSpacingHours}h de ${alert.existingMedName}).`,
                                             'success'
                                           );
                                         }}
-                                        className="min-h-[32px] px-3 py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold inline-flex items-center gap-1.5 transition-colors"
+                                        className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold inline-flex items-center gap-1 transition-colors shrink-0"
                                       >
-                                        <Clock className="w-3.5 h-3.5" />
-                                        <span>
-                                          Espaçar horário automaticamente (+{alert.suggestedSpacingHours}h de distância)
-                                        </span>
+                                        <Clock className="w-3 h-3" />
+                                        <span>Espaçar +{alert.suggestedSpacingHours}h</span>
                                       </button>
                                     )}
                                   </div>
@@ -4873,127 +4499,64 @@ export default function App() {
                           </div>
                         )}
 
-                        {/* PAINEL DE SUPORTE: MELHOR HORÁRIO PARA COMEÇAR A TOMAR, COMO FAZER E BULA PRONTA */}
+                        {/* PAINEL COMPACTO: BULA E MELHOR HORÁRIO */}
                         {currentFormGuidance && (
-                          <div className="p-4 rounded-2xl bg-emerald-50/70 border border-teal-200/90 space-y-2.5">
-                            <div className="flex items-start justify-between flex-wrap gap-2">
-                              <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0">
-                                  <Info className="w-4 h-4" />
-                                </div>
-                                <div>
-                                  <h3 className="text-xs font-bold text-teal-950">
-                                    Orientação Farmacêutica: Melhor Horário e Como Tomar
-                                  </h3>
-                                  {currentFormGuidance.therapeuticClass && (
-                                    <p className="text-[11px] text-teal-800">
-                                      Classe: {currentFormGuidance.therapeuticClass}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
+                          <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-teal-200/90 space-y-2">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <span className="text-xs font-bold text-teal-950 inline-flex items-center gap-1.5">
+                                <Info className="w-4 h-4 text-teal-600" />
+                                Orientação da Bula
+                              </span>
 
-                              <div className="flex items-center flex-wrap gap-1.5">
+                              <div className="flex items-center gap-1.5">
                                 {formShouldSaveBula ? (
                                   <>
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-teal-800 border border-teal-200 text-[11px] font-bold">
-                                      <FileText className="w-3.5 h-3.5 text-teal-600" />
-                                      Bula pronta (openFDA + ANVISA)
+                                    <span className="px-2 py-0.5 rounded-md bg-white text-teal-800 border border-teal-200 text-[11px] font-semibold">
+                                      Bula vinculada
                                     </span>
                                     <button
                                       type="button"
                                       onClick={() => {
                                         setFormShouldSaveBula(false);
                                         setPendingBulaDraft(null);
-                                        showToast(
-                                          'Bula removida deste cadastro. Você pode baixá-la novamente quando quiser.',
-                                          'warning'
-                                        );
+                                        showToast('Bula removida deste cadastro.', 'warning');
                                       }}
-                                      className="min-h-[30px] px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold inline-flex items-center gap-1 transition-colors"
+                                      className="px-2 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold inline-flex items-center gap-1"
                                     >
                                       <Trash2 className="w-3 h-3" />
                                       <span>Remover Bula</span>
                                     </button>
                                   </>
                                 ) : (
-                                  <>
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 border border-slate-200 text-[11px] font-semibold">
-                                      Bula removida
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setFormShouldSaveBula(true);
-                                        handleFetchBulaAndAnalyzeInteractions(
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormShouldSaveBula(true);
+                                      handleFetchBulaAndAnalyzeInteractions(
+                                        formName,
+                                        formActiveIngredient,
+                                        findCatalogMatchForMedication(
                                           formName,
-                                          formActiveIngredient,
-                                          findCatalogMatchForMedication(
-                                            formName,
-                                            formActiveIngredient
-                                          ) || undefined
-                                        );
-                                      }}
-                                      className="min-h-[30px] px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold inline-flex items-center gap-1 transition-colors"
-                                    >
-                                      <Download className="w-3 h-3" />
-                                      <span>Baixar Bula Novamente</span>
-                                    </button>
-                                  </>
+                                          formActiveIngredient
+                                        ) || undefined
+                                      );
+                                    }}
+                                    className="px-2.5 py-1 rounded-md bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold inline-flex items-center gap-1"
+                                  >
+                                    <Download className="w-3 h-3" />
+                                    <span>Baixar Bula</span>
+                                  </button>
                                 )}
                               </div>
                             </div>
 
                             {currentFormGuidance.bestTimeGuidance && (
-                              <div className="p-3 rounded-xl bg-white/95 border border-teal-100 text-xs text-slate-700 space-y-1.5">
-                                <p className="font-bold text-slate-900 flex items-center gap-1.5">
-                                  <Clock className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-                                  <span>
-                                    Melhor horário para começar a tomar:{' '}
-                                    {currentFormGuidance.recommendedTimes.length > 0 && (
-                                      <span className="font-mono-tabular text-teal-700">
-                                        ({currentFormGuidance.recommendedTimes.join(', ')})
-                                      </span>
-                                    )}
-                                  </span>
-                                </p>
-                                <p className="leading-relaxed">
-                                  {currentFormGuidance.bestTimeGuidance}
-                                </p>
-                                {currentFormGuidance.recommendedTimes.length > 0 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setFormIsActiveTreatment(true);
-                                      setFormScheduleTimes(
-                                        [...currentFormGuidance.recommendedTimes].sort()
-                                      );
-                                      setFormTreatmentStartTime(
-                                        currentFormGuidance.recommendedTimes[0]
-                                      );
-                                      showToast(
-                                        `Horários recomendados (${currentFormGuidance.recommendedTimes.join(', ')}) aplicados!`,
-                                        'success'
-                                      );
-                                    }}
-                                    className="min-h-[32px] px-3 py-1 rounded-lg bg-teal-100 hover:bg-teal-200 text-teal-950 text-[11px] font-bold inline-flex items-center gap-1.5 transition-colors"
-                                  >
-                                    <Check className="w-3.5 h-3.5" />
-                                    <span>
-                                      Aplicar horários sugeridos ({currentFormGuidance.recommendedTimes.join(', ')})
-                                    </span>
-                                  </button>
-                                )}
-                              </div>
-                            )}
-
-                            {currentFormGuidance.administrationTips && (
-                              <div className="p-3 rounded-xl bg-white/95 border border-teal-100 text-xs text-slate-700">
-                                <strong className="text-slate-900">
-                                  Como tomar corretamente:{' '}
+                              <p className="text-xs text-slate-700 bg-white/90 p-2.5 rounded-xl border border-teal-100">
+                                <strong className="text-teal-900">
+                                  Melhor horário ({currentFormGuidance.recommendedTimes.join(', ')}):{' '}
                                 </strong>
-                                {currentFormGuidance.administrationTips}
-                              </div>
+                                {currentFormGuidance.bestTimeGuidance}
+                              </p>
                             )}
                           </div>
                         )}
@@ -5001,7 +4564,7 @@ export default function App() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
                             <label className="block text-xs font-semibold text-slate-700 mb-1">
-                              Categoria Principal
+                              Categoria
                             </label>
                             <div className="relative">
                               <select
@@ -5009,17 +4572,11 @@ export default function App() {
                                 onChange={(e) => setFormCategory(e.target.value)}
                                 className="w-full min-h-[44px] pl-9 pr-3.5 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm text-slate-800 focus:outline-none focus:bg-white focus:border-teal-600"
                               >
-                                {categoriesList.map((cat) => {
-                                  const catTheme = getCategoryTheme(cat.name);
-                                  const colorText = cat.colorKey.startsWith('#')
-                                    ? cat.colorKey
-                                    : catTheme.label;
-                                  return (
-                                    <option key={cat.name} value={cat.name}>
-                                      {cat.name} ({colorText})
-                                    </option>
-                                  );
-                                })}
+                                {categoriesList.map((cat) => (
+                                  <option key={cat.name} value={cat.name}>
+                                    {cat.name}
+                                  </option>
+                                ))}
                               </select>
                               <span
                                 className="w-3.5 h-3.5 rounded-full absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -5040,13 +4597,11 @@ export default function App() {
                                 const matched = presentationsList.find(
                                   (p) => p.name === nextType
                                 );
-                                if (matched) {
-                                  setFormDoseDisplay(matched.defaultDose);
-                                } else {
-                                  setFormDoseDisplay(
-                                    `1 ${nextType.toLowerCase()}`
-                                  );
-                                }
+                                setFormDoseDisplay(
+                                  matched
+                                    ? matched.defaultDose
+                                    : `1 ${nextType.toLowerCase()}`
+                                );
                               }}
                               className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm text-slate-800 focus:outline-none focus:bg-white focus:border-teal-600"
                             >
@@ -5061,65 +4616,29 @@ export default function App() {
 
                         <div>
                           <label className="block text-xs font-semibold text-slate-700 mb-1">
-                            Finalidade Terapêutica (Para que serve) *
+                            Para que serve (Indicação) *
                           </label>
-                          <textarea
-                            rows={2}
+                          <input
+                            type="text"
                             required
                             value={formPurpose}
                             onChange={(e) => setFormPurpose(e.target.value)}
-                            placeholder="Descreva a finalidade clínica e sintomas tratados."
-                            className="w-full p-3 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm text-slate-800 focus:outline-none focus:bg-white focus:border-teal-600"
+                            placeholder="Ex: Controle de pressão arterial, dor e febre..."
+                            className="w-full min-h-[42px] px-3.5 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm text-slate-800 focus:outline-none focus:bg-white focus:border-teal-600"
                           />
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className="block text-xs font-semibold text-slate-700">
-                            Tags Clínicas Padrão
-                          </label>
-                          <div className="flex flex-wrap gap-1.5">
-                            {STANDARD_CLINICAL_TAGS.map((tag) => {
-                              const isSelected = formSelectedTags.includes(tag);
-                              return (
-                                <button
-                                  key={tag}
-                                  type="button"
-                                  onClick={() =>
-                                    setFormSelectedTags((prev) =>
-                                      prev.includes(tag)
-                                        ? prev.filter((t) => t !== tag)
-                                        : [...prev, tag]
-                                    )
-                                  }
-                                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
-                                    isSelected
-                                      ? 'bg-teal-600 text-white font-semibold'
-                                      : 'bg-sky-50 text-sky-900 hover:bg-sky-100'
-                                  }`}
-                                >
-                                  {tag}
-                                </button>
-                              );
-                            })}
-                          </div>
                         </div>
                       </div>
                     </section>
 
-                    <section className="p-5 rounded-3xl bg-white border border-sky-100 space-y-4">
-                      <div>
-                        <h2 className="text-sm font-bold text-slate-900">
-                          2. Estoque, Validade e Último Preço Pago
-                        </h2>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          A <strong>Capacidade da Caixa</strong> é quanto vem em 1 caixa fechada (ex: 20). A <strong>Quantidade Atual</strong> é o total que você tem em casa agora (ex: 40 se tiver 2 caixas).
-                        </p>
-                      </div>
+                    <section className="p-4 sm:p-5 rounded-3xl bg-white border border-sky-100 space-y-3.5">
+                      <h2 className="text-sm font-bold text-slate-900">
+                        2. Estoque e Caixa
+                      </h2>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                        <div className="p-3.5 rounded-2xl bg-sky-50/40 border border-sky-100 space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="p-3 rounded-2xl bg-sky-50/40 border border-sky-100 space-y-2">
                           <label className="block text-xs font-bold text-slate-800">
-                            Capacidade da Caixa (un. em 1 caixa)
+                            Capacidade de 1 Caixa
                           </label>
                           <input
                             type="number"
@@ -5130,12 +4649,9 @@ export default function App() {
                               setFormBoxCapacity(v === '' ? '' : Math.max(1, Number(v)));
                             }}
                             placeholder="Ex: 20"
-                            className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-white border border-sky-200/90 text-sm font-mono-tabular font-semibold text-slate-900"
+                            className="w-full min-h-[42px] px-3 py-1.5 rounded-xl bg-white border border-sky-200/90 text-sm font-mono-tabular font-semibold text-slate-900"
                           />
-                          <div className="flex items-center flex-wrap gap-1.5 pt-0.5">
-                            <span className="text-[11px] text-slate-500">
-                              Padrões de 1 cx:
-                            </span>
+                          <div className="flex items-center flex-wrap gap-1">
                             {[10, 14, 20, 30, 60].map((capPreset) => (
                               <button
                                 key={capPreset}
@@ -5153,9 +4669,9 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="p-3.5 rounded-2xl bg-teal-50/35 border border-teal-200/70 space-y-2">
+                        <div className="p-3 rounded-2xl bg-teal-50/35 border border-teal-200/70 space-y-2">
                           <label className="block text-xs font-bold text-slate-800">
-                            Quantidade Atual Total (todas as unidades)
+                            Quantidade Atual Total
                           </label>
                           <input
                             type="number"
@@ -5165,8 +4681,8 @@ export default function App() {
                               const v = e.target.value;
                               setFormCurrentStock(v === '' ? '' : Math.max(0, Number(v)));
                             }}
-                            placeholder="Ex: 40 (para 2 caixas de 20)"
-                            className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-white border border-teal-300/90 text-sm font-mono-tabular font-semibold text-slate-900"
+                            placeholder="Ex: 40 (2 caixas)"
+                            className="w-full min-h-[42px] px-3 py-1.5 rounded-xl bg-white border border-teal-300/90 text-sm font-mono-tabular font-semibold text-slate-900"
                           />
                           {(() => {
                             const boxCap = Math.max(1, Number(formBoxCapacity) || 20);
@@ -5175,11 +4691,8 @@ export default function App() {
                               presentationsList.find((p) => p.name === formType)
                                 ?.unitLabel || 'unidades';
                             return (
-                              <div className="space-y-1.5 pt-0.5">
-                                <div className="flex items-center flex-wrap gap-1.5">
-                                  <span className="text-[11px] text-slate-600">
-                                    Multiplicar caixas:
-                                  </span>
+                              <div className="space-y-1">
+                                <div className="flex items-center flex-wrap gap-1">
                                   {[1, 2, 3, 4].map((boxesCount) => {
                                     const totalForBoxes = boxCap * boxesCount;
                                     const isSelected = curr === totalForBoxes;
@@ -5196,12 +4709,12 @@ export default function App() {
                                             : 'bg-white text-teal-900 border-teal-200 hover:bg-teal-100/70'
                                         }`}
                                       >
-                                        {boxesCount} {boxesCount === 1 ? 'cx' : 'cxs'} ({totalForBoxes})
+                                        {boxesCount}x ({totalForBoxes})
                                       </button>
                                     );
                                   })}
                                 </div>
-                                <p className="text-[11px] font-semibold text-teal-900 bg-white/90 px-2.5 py-1 rounded-lg border border-teal-200/70">
+                                <p className="text-[11px] font-medium text-teal-900">
                                   {formatBoxBreakdown(curr, boxCap, unitLabel)}
                                 </p>
                               </div>
@@ -5211,19 +4724,19 @@ export default function App() {
 
                         <div>
                           <label className="block text-xs font-semibold text-slate-700 mb-1">
-                            Data de Validade
+                            Validade
                           </label>
                           <input
                             type="date"
                             value={formExpiryDate}
                             onChange={(e) => setFormExpiryDate(e.target.value)}
-                            className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm font-mono-tabular"
+                            className="w-full min-h-[42px] px-3 py-1.5 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm font-mono-tabular"
                           />
                         </div>
 
                         <div>
                           <label className="block text-xs font-semibold text-slate-700 mb-1">
-                            Último Preço Pago (R$)
+                            Último Preço (R$)
                           </label>
                           <input
                             type="number"
@@ -5234,20 +4747,20 @@ export default function App() {
                               const v = e.target.value;
                               setFormLastPaidPrice(v === '' ? '' : Math.max(0, Number(v)));
                             }}
-                            className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm font-mono-tabular"
+                            className="w-full min-h-[42px] px-3 py-1.5 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm font-mono-tabular"
                           />
                         </div>
                       </div>
                     </section>
 
-                    <section className="p-5 rounded-3xl bg-white border border-sky-100 space-y-4">
+                    <section className="p-4 sm:p-5 rounded-3xl bg-white border border-sky-100 space-y-4">
                       <div className="flex items-center justify-between gap-4">
                         <div>
                           <h2 className="text-sm font-bold text-slate-900">
-                            3. Tratamento Ativo com Horários Programados
+                            3. Posologia, Intervalo e Horários
                           </h2>
                           <p className="text-xs text-slate-500">
-                            Incluir na agenda diária e nos círculos de progresso
+                            Escolha de quantas em quantas horas e edite os horários se desejar
                           </p>
                         </div>
 
@@ -5255,9 +4768,13 @@ export default function App() {
                           type="button"
                           role="switch"
                           aria-checked={formIsActiveTreatment}
-                          onClick={() =>
-                            setFormIsActiveTreatment(!formIsActiveTreatment)
-                          }
+                          onClick={() => {
+                            const next = !formIsActiveTreatment;
+                            setFormIsActiveTreatment(next);
+                            if (next && formScheduleTimes.length === 0) {
+                              applyIntervalSchedule(formIntervalHours || 24);
+                            }
+                          }}
                           className={`w-14 h-8 rounded-full p-1 transition-colors shrink-0 ${
                             formIsActiveTreatment
                               ? 'bg-teal-600'
@@ -5276,33 +4793,199 @@ export default function App() {
 
                       {formIsActiveTreatment && (
                         <div className="space-y-4 pt-2 border-t border-sky-50">
+                          {/* SELETOR DE QUANTAS EM QUANTAS HORAS + 1º HORÁRIO */}
+                          <div className="p-3.5 rounded-2xl bg-sky-50/50 border border-sky-100 space-y-3">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                <Clock className="w-3.5 h-3.5 text-teal-600" />
+                                <span>De quantas em quantas horas?</span>
+                              </label>
+                              <span className="text-[11px] text-teal-800 font-medium">
+                                Ajusta os melhores horários automaticamente
+                              </span>
+                            </div>
+
+                            <div className="flex items-center flex-wrap gap-1.5">
+                              {[
+                                { hours: 24, label: '24h (1x/dia)' },
+                                { hours: 12, label: '12/12h (2x)' },
+                                { hours: 8, label: '8/8h (3x)' },
+                                { hours: 6, label: '6/6h (4x)' },
+                                { hours: 4, label: '4/4h (6x)' }
+                              ].map((preset) => {
+                                const isSelected =
+                                  Number(formIntervalHours) === preset.hours;
+                                return (
+                                  <button
+                                    key={preset.hours}
+                                    type="button"
+                                    onClick={() =>
+                                      applyIntervalSchedule(
+                                        preset.hours,
+                                        formTreatmentStartTime
+                                      )
+                                    }
+                                    className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-bold transition-colors border ${
+                                      isSelected
+                                        ? 'bg-teal-600 text-white border-teal-600 shadow-2xs'
+                                        : 'bg-white text-slate-700 border-sky-200 hover:bg-sky-100/60'
+                                    }`}
+                                  >
+                                    {preset.label}
+                                  </button>
+                                );
+                              })}
+
+                              <div className="inline-flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-sky-200 min-h-[36px]">
+                                <span className="text-[11px] font-medium text-slate-600">
+                                  A cada
+                                </span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={24}
+                                  value={formIntervalHours}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val === '') {
+                                      setFormIntervalHours('');
+                                    } else {
+                                      const hrs = Math.max(
+                                        1,
+                                        Math.min(24, Number(val))
+                                      );
+                                      applyIntervalSchedule(
+                                        hrs,
+                                        formTreatmentStartTime
+                                      );
+                                    }
+                                  }}
+                                  placeholder="h"
+                                  className="w-12 text-center font-mono-tabular text-xs font-bold text-slate-900 bg-sky-50/70 rounded-lg py-1 border border-sky-200 focus:outline-none focus:border-teal-600"
+                                />
+                                <span className="text-[11px] font-medium text-slate-600">
+                                  horas
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-sky-100">
+                              <div className="flex items-center gap-2">
+                                <label className="text-xs font-semibold text-slate-700">
+                                  1º Horário (Base):
+                                </label>
+                                <input
+                                  type="time"
+                                  required
+                                  value={formTreatmentStartTime}
+                                  onChange={(e) => {
+                                    const newStart = e.target.value;
+                                    setFormTreatmentStartTime(newStart);
+                                    if (
+                                      formIntervalHours &&
+                                      Number(formIntervalHours) > 0
+                                    ) {
+                                      const recalculated =
+                                        generateScheduleTimesByInterval(
+                                          Number(formIntervalHours),
+                                          newStart
+                                        );
+                                      setFormScheduleTimes(recalculated);
+                                    }
+                                  }}
+                                  className="min-h-[36px] px-2.5 py-1 rounded-xl bg-white border border-sky-200 text-xs font-mono-tabular font-bold text-slate-900"
+                                />
+                              </div>
+
+                              {currentFormGuidance?.recommendedTimes?.[0] && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const bestStart =
+                                      currentFormGuidance.recommendedTimes[0];
+                                    const hrs =
+                                      Number(formIntervalHours) ||
+                                      Math.max(
+                                        1,
+                                        Math.round(
+                                          24 /
+                                            currentFormGuidance.recommendedTimes
+                                              .length
+                                        )
+                                      );
+                                    applyIntervalSchedule(hrs, bestStart);
+                                    showToast(
+                                      `Ajustado a partir do melhor horário (${bestStart})!`,
+                                      'success'
+                                    );
+                                  }}
+                                  className="text-[11px] font-bold text-teal-700 hover:text-teal-800 inline-flex items-center gap-1"
+                                >
+                                  <Sparkles className="w-3 h-3" />
+                                  <span>
+                                    Usar melhor horário sugerido ({currentFormGuidance.recommendedTimes[0]})
+                                  </span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* HORÁRIOS GERADOS (CADA UM PODE SER EDITADO DIRETAMENTE OU REMOVIDO) */}
                           <div className="space-y-2">
-                            <label className="block text-xs font-semibold text-slate-700">
-                              Horários de Administração
-                            </label>
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-slate-800">
+                                Horários do Dia ({formScheduleTimes.length}{' '}
+                                {formScheduleTimes.length === 1
+                                  ? 'dose'
+                                  : 'doses'}
+                                ) — toque no horário para editar
+                              </label>
+                            </div>
+
                             {formScheduleTimes.length === 0 ? (
                               <p className="text-xs text-slate-500 bg-sky-50/50 px-3 py-2 rounded-xl border border-sky-100">
-                                Nenhum horário adicionado. Selecione o horário abaixo e clique em &ldquo;+ Incluir Horário&rdquo; para adicionar quantos horários forem necessários.
+                                Selecione um intervalo acima ou adicione um horário abaixo.
                               </p>
                             ) : (
                               <div className="flex items-center flex-wrap gap-2">
-                                {formScheduleTimes.map((time) => (
+                                {formScheduleTimes.map((time, idx) => (
                                   <div
-                                    key={time}
-                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-sky-50 border border-sky-200 text-xs font-mono-tabular font-semibold text-sky-900"
+                                    key={`${idx}-${time}`}
+                                    className="inline-flex items-center gap-1.5 pl-2.5 pr-2 py-1 rounded-xl bg-teal-50/80 border border-teal-200 text-xs font-mono-tabular font-bold text-teal-950"
                                   >
-                                    <span>{time}</span>
+                                    <span className="text-[10px] text-teal-700 font-sans font-semibold">
+                                      {idx + 1}ª:
+                                    </span>
+                                    <input
+                                      type="time"
+                                      value={time}
+                                      aria-label={`Editar ${idx + 1}º horário`}
+                                      onChange={(e) => {
+                                        const updatedTime = e.target.value;
+                                        if (!updatedTime) return;
+                                        const nextList = [...formScheduleTimes];
+                                        nextList[idx] = updatedTime;
+                                        const deduped = Array.from(
+                                          new Set(nextList)
+                                        ).sort();
+                                        setFormScheduleTimes(deduped);
+                                        if (idx === 0) {
+                                          setFormTreatmentStartTime(updatedTime);
+                                        }
+                                      }}
+                                      className="bg-white px-2 py-0.5 rounded-lg border border-teal-200 text-xs font-mono-tabular font-bold text-slate-900 focus:outline-none focus:border-teal-600"
+                                    />
                                     <button
                                       type="button"
                                       onClick={() =>
                                         setFormScheduleTimes(
                                           formScheduleTimes.filter(
-                                            (t) => t !== time
+                                            (_, i) => i !== idx
                                           )
                                         )
                                       }
                                       aria-label={`Remover horário ${time}`}
-                                      className="text-sky-700 hover:text-rose-600"
+                                      className="p-0.5 text-slate-400 hover:text-rose-600"
                                     >
                                       <X className="w-3.5 h-3.5" />
                                     </button>
@@ -5318,14 +5001,14 @@ export default function App() {
                                 onChange={(e) =>
                                   setFormNewTimeInput(e.target.value)
                                 }
-                                className="min-h-[40px] px-3 py-1.5 rounded-xl bg-sky-50/40 border border-sky-200 text-sm font-mono-tabular"
+                                className="min-h-[38px] px-3 py-1 rounded-xl bg-sky-50/40 border border-sky-200 text-xs font-mono-tabular"
                               />
                               <button
                                 type="button"
                                 onClick={() => {
                                   if (!formNewTimeInput) {
                                     showToast(
-                                      'Atenção: Selecione um horário no campo ao lado para incluir.',
+                                      'Selecione um horário ao lado para adicionar.',
                                       'warning'
                                     );
                                     return;
@@ -5339,17 +5022,17 @@ export default function App() {
                                   }
                                   setFormNewTimeInput('');
                                 }}
-                                className="min-h-[40px] px-3.5 py-1.5 rounded-xl bg-sky-100/80 hover:bg-sky-200/70 text-xs font-semibold text-sky-900"
+                                className="min-h-[38px] px-3 py-1 rounded-xl bg-sky-100/80 hover:bg-sky-200/70 text-xs font-semibold text-sky-900"
                               >
-                                + Incluir Horário
+                                + Horário Extra
                               </button>
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
                               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                Data de Início do Tratamento *
+                                Data de Início *
                               </label>
                               <input
                                 type="date"
@@ -5358,34 +5041,13 @@ export default function App() {
                                 onChange={(e) =>
                                   setFormTreatmentStartDate(e.target.value)
                                 }
-                                className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm font-mono-tabular text-slate-800 focus:outline-none focus:bg-white focus:border-teal-600"
+                                className="w-full min-h-[42px] px-3 py-1.5 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm font-mono-tabular text-slate-800"
                               />
-                              <p className="text-[11px] text-slate-500 mt-1">
-                                Data em que iniciou o tratamento
-                              </p>
                             </div>
 
                             <div>
                               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                Horário de Início do Tratamento *
-                              </label>
-                              <input
-                                type="time"
-                                required
-                                value={formTreatmentStartTime}
-                                onChange={(e) =>
-                                  setFormTreatmentStartTime(e.target.value)
-                                }
-                                className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm font-mono-tabular text-slate-800 focus:outline-none focus:bg-white focus:border-teal-600"
-                              />
-                              <p className="text-[11px] text-slate-500 mt-1">
-                                Horário da primeira dose administrada
-                              </p>
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                Regime de Prescrição
+                                Receituário
                               </label>
                               <select
                                 value={formControlled}
@@ -5394,16 +5056,16 @@ export default function App() {
                                     e.target.value as ControlledType
                                   )
                                 }
-                                className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm text-slate-800"
+                                className="w-full min-h-[42px] px-3 py-1.5 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm text-slate-800"
                               >
                                 <option value="Venda Livre / Simples">
-                                  Venda Livre / Receituário Simples
+                                  Simples / Venda Livre
                                 </option>
                                 <option value="Receita Retida (Branca C1/Antibiótico)">
-                                  Receita Retida (Controle Especial / Antibiótico)
+                                  Receita Retida (C1 / Antibiótico)
                                 </option>
                                 <option value="Receita Azul (Notificação B)">
-                                  Receita Azul (Notificação B)
+                                  Receita Azul (B)
                                 </option>
                               </select>
                             </div>
@@ -5422,9 +5084,9 @@ export default function App() {
                                     const v = e.target.value;
                                     setFormTreatmentDays(v === '' ? '' : Math.max(1, Number(v)));
                                   }}
-                                  className="w-20 min-h-[44px] px-3 py-2 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm font-mono-tabular disabled:opacity-50"
+                                  className="w-20 min-h-[42px] px-3 py-1.5 rounded-xl bg-sky-50/40 border border-sky-200/80 text-sm font-mono-tabular disabled:opacity-50"
                                 />
-                                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-700 cursor-pointer">
                                   <input
                                     type="checkbox"
                                     checked={formIsContinuous}
@@ -5433,13 +5095,13 @@ export default function App() {
                                     }
                                     className="w-4 h-4 rounded accent-teal-600"
                                   />
-                                  <span>Uso Contínuo</span>
+                                  <span>Contínuo</span>
                                 </label>
                               </div>
                             </div>
                           </div>
 
-                          {/* Informativo de Desconto Automático de Doses Anteriores */}
+                          {/* Resumo compacto de desconto retroativo (só aparece se iniciado em data passada) */}
                           {(() => {
                             if (!formIsActiveTreatment || formScheduleTimes.length === 0) return null;
                             const pastElapsed = calculateElapsedDosesFromStart(
@@ -5454,30 +5116,16 @@ export default function App() {
                             const unitsDeducted = pastElapsed * doseAmt;
                             const rawStock = Number(formCurrentStock) || 0;
                             const remainingStock = Math.max(0, rawStock - unitsDeducted);
-                            const unitLabel = presentationsList.find((p) => p.name === formType)?.unitLabel || 'unidades';
+                            const unitLabel = presentationsList.find((p) => p.name === formType)?.unitLabel || 'un.';
 
                             return (
-                              <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs text-amber-950 space-y-1.5">
-                                <div className="flex items-center gap-1.5 font-bold text-amber-900">
-                                  <Clock className="w-4 h-4 text-amber-700" />
-                                  <span>
-                                    Tratamento iniciado anteriormente ({formatDateFriendly(formTreatmentStartDate)} às {formTreatmentStartTime})
-                                  </span>
-                                </div>
-                                <p className="text-slate-700 leading-relaxed">
-                                  Com base na data e horário de início informados, <strong>{pastElapsed} {pastElapsed === 1 ? 'dose já decorreu' : 'doses já decorreram'}</strong> até o momento atual ({getCurrentTimeHHMM()}).
-                                </p>
-                                <div className="flex items-center flex-wrap gap-2 pt-1 font-mono-tabular text-[11px]">
-                                  <span className="px-2.5 py-1 rounded-lg bg-white border border-amber-200 text-amber-900 font-semibold shadow-2xs">
-                                    Doses decorridas: <strong>{pastElapsed}</strong>
-                                  </span>
-                                  <span className="px-2.5 py-1 rounded-lg bg-white border border-amber-200 text-amber-900 font-semibold shadow-2xs">
-                                    Desconto no estoque: <strong>-{unitsDeducted} {unitLabel}</strong>
-                                  </span>
-                                  <span className="px-2.5 py-1 rounded-lg bg-teal-100 border border-teal-200 text-teal-900 font-bold shadow-2xs">
-                                    Estoque restante ajustado: <strong>{remainingStock} {unitLabel}</strong>
-                                  </span>
-                                </div>
+                              <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs text-amber-950 flex items-center justify-between flex-wrap gap-2">
+                                <span>
+                                  Início retroativo: <strong>{pastElapsed} doses decorridas</strong> (-{unitsDeducted} {unitLabel})
+                                </span>
+                                <span className="px-2.5 py-0.5 rounded-lg bg-teal-100 border border-teal-200 text-teal-900 font-mono-tabular font-bold">
+                                  Restante: {remainingStock} {unitLabel}
+                                </span>
                               </div>
                             );
                           })()}
@@ -5493,8 +5141,8 @@ export default function App() {
                       <Check className="w-5 h-5" />
                       <span>
                         {editingMedId
-                          ? 'Salvar Alterações no Banco de Dados'
-                          : 'Confirmar Cadastro do Medicamento'}
+                          ? 'Salvar Alterações'
+                          : 'Salvar Medicamento'}
                       </span>
                     </motion.button>
                   </motion.form>
